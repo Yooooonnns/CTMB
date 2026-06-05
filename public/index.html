@@ -221,16 +221,7 @@
       if (type === 'op') {
         window.open(getOpUrl(), '_blank', 'noopener');
       } else {
-        // POST to the server which relays ctmb:open via Socket.io to the Electron display app.
-        // Falls back to browser LED page if the app is not connected.
-        const line = +document.getElementById('sel-led-line').value || 1;
-        const post = +document.getElementById('sel-led-post').value || 1;
-        fetch('/api/ctmb/open', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ lineId: line, postId: post })
-        })
-        .catch(() => {});
+        window.open(getLedUrl(), '_blank', 'noopener');
       }
     }
 
