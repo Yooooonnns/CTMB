@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YAZAKI — Poste</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:     #f5f5f5;
+      --card:   #ffffff;
+      --text:   #212121;
+      --dim:    #757575;
+      --border: #e0e0e0;
+      --green:  #2e7d32;
+      --red:    #c62828;
+      --amber:  #e65100;
+      --blue:   #1565c0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ─────────────────────────────────── */
+    header {
+      background: #fff;
+      border-bottom: 1px solid var(--border);
+      padding: 11px 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .logo img { height: 48px; width: auto; display: block; }
+    .logo { font-size: 17px; font-weight: 800; color: #b71c1c; letter-spacing: .07em; }
+    .post-chip {
+      background: #212121;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 20px;
+      letter-spacing: .04em;
+    }
+    .hspacer { flex: 1; }
+    #op-id {
+      font-size: 13px;
+      color: var(--dim);
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #conn-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #bbb;
+      flex-shrink: 0;
+    }
+    #conn-dot.ok   { background: #43a047; box-shadow: 0 0 5px #43a04766; }
+    #conn-dot.fail { background: #e53935; }
+
+    /* ── Main area ──────────────────────────────── */
+    main {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 28px 16px;
+    }
+
+    .screen { display: none; width: 100%; max-width: 400px; flex-direction: column; gap: 14px; }
+    #screen-work { max-width: 98vw; }
+    .screen.active { display: flex; }
+
+    /* ── Cards ──────────────────────────────────── */
+    .card {
+      background: var(--card);
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.08);
+      padding: 24px;
+    }
+
+    /* ── SCAN screen ─────────────────────────────── */
+    .scan-hint { font-size: 14px; color: var(--dim); text-align: center; margin-bottom: 18px; }
+    #badge-input {
+      width: 100%;
+      font-size: 20px;
+      padding: 12px 14px;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      text-align: center;
+      letter-spacing: .1em;
+      font-family: inherit;
+      color: var(--text);
+      outline: none;
+      transition: border-color .2s;
+    }
+    #badge-input:focus { border-color: var(--blue); }
+
+    /* ── IDLE screen ─────────────────────────────── */
+    #idle-msg { font-size: 15px; color: var(--dim); text-align: center; }
+
+    /* ── WORK screen ─────────────────────────────── */
+    .ref-label { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+    #work-ref  { font-size: 30px; font-weight: 800; letter-spacing: .04em; line-height: 1.1; word-break: break-all; }
+
+    .timer-row {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    #elapsed {
+      font-size: 32px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      color: var(--green);
+      transition: color .3s;
+    }
+    #elapsed.late { color: var(--red); }
+    #ct-of { font-size: 14px; color: var(--dim); }
+
+    /* Progress bar */
+    #prog-wrap {
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+    #prog-bar {
+      height: 100%;
+      background: var(--green);
+      border-radius: 3px;
+      width: 0%;
+      transition: width .5s linear, background .3s;
+    }
+    #prog-bar.warn { background: #ffc107; }
+    #prog-bar.late { background: var(--red); }
+
+    /* Late banner */
+    #late-banner {
+      background: #fff3e0;
+      border: 2px solid var(--amber);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--amber);
+      text-align: center;
+      display: none;
+    }
+    #late-banner.show { display: block; }
+
+    /* Mistakes */
+    .mistakes-hdr {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--dim);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: 12px;
+    }
+    .mistake-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+      line-height: 1.4;
+    }
+    .mistake-row:last-child { border-bottom: none; }
+    .mdot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--amber);
+      flex-shrink: 0;
+      margin-top: 5px;
+    }
+    .no-mistakes { font-size: 13px; color: var(--dim); }
+
+    /* ── Buttons ────────────────────────────────── */
+    .btn {
+      width: 100%;
+      border: none;
+      border-radius: 8px;
+      padding: 16px;
+      font-size: 15px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      letter-spacing: .04em;
+      transition: background .15s, transform .1s;
+    }
+    .btn:active:not(:disabled) { transform: scale(.98); }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-accept { background: var(--blue);   color: #fff; }
+    .btn-accept:hover:not(:disabled) { background: #0d47a1; }
+    .btn-done   { background: var(--green);  color: #fff; }
+    .btn-done:hover:not(:disabled)   { background: #1b5e20; }
+    .btn-done.late { background: var(--red); }
+    .btn-done.late:hover:not(:disabled) { background: #b71c1c; }
+    .btn-logout {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--dim);
+      padding: 10px;
+      font-size: 13px;
+    }
+    .btn-logout:hover { background: var(--bg); }
+
+    /* ── Andon buttons ─────────────────────────────── */
+    .andon-row {
+      display: flex;
+      gap: 10px;
+      padding: 0 16px 10px;
+      background: #fff;
+      border-bottom: 1px solid var(--border);
+    }
+    .andon-btn {
+      flex: 1;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      letter-spacing: .03em;
+      background: var(--bg);
+      color: var(--dim);
+      transition: background .15s, border-color .15s, color .15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+    }
+    .andon-btn .andon-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: #ccc;
+      flex-shrink: 0;
+      transition: background .2s;
+    }
+    .andon-btn.yellow-active {
+      background: #fffde7;
+      border-color: #f9a825;
+      color: #f57f17;
+    }
+    .andon-btn.yellow-active .andon-dot { background: #fdd835; box-shadow: 0 0 6px 2px #fdd83588; }
+    .andon-btn.red-active {
+      background: #ffebee;
+      border-color: #c62828;
+      color: #b71c1c;
+    }
+    .andon-btn.red-active .andon-dot { background: #e53935; box-shadow: 0 0 6px 2px #e5393588; }
+
+    /* ── Alert ampoule strip ────────────────────────── */
+    #alert-strip {
+      display: flex;
+      gap: 10px;
+      padding: 10px 16px;
+      background: #fff;
+      border-bottom: 1px solid var(--border);
+    }
+    .ampoule-card {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 2px solid var(--border);
+      background: var(--bg);
+      transition: background .3s, border-color .3s;
+    }
+    .ampoule-bulb {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: #d0d0d0;
+      border: 2px solid #b0b0b0;
+      flex-shrink: 0;
+      box-shadow: 0 0 0 0 transparent;
+      transition: background .3s, box-shadow .3s, border-color .3s;
+    }
+    .ampoule-msg {
+      font-size: 13px;
+      font-weight: 700;
+      color: #424242;
+      transition: color .3s;
+    }
+
+    /* Active states */
+    .ampoule-card.yellow-on {
+      background: #fffde7;
+      border-color: #f9a825;
+    }
+    .ampoule-card.yellow-on .ampoule-bulb {
+      background: #fdd835;
+      box-shadow: 0 0 10px 4px #fdd83599;
+      animation: pulse-yellow 1.2s ease-in-out infinite;
+    }
+    .ampoule-card.yellow-on .ampoule-msg { color: #f57f17; }
+
+    .ampoule-card.red-on {
+      background: #ffebee;
+      border-color: #c62828;
+    }
+    .ampoule-card.red-on .ampoule-bulb {
+      background: #e53935;
+      box-shadow: 0 0 10px 4px #e5393599;
+      animation: pulse-red 1s ease-in-out infinite;
+    }
+    .ampoule-card.red-on .ampoule-msg { color: #b71c1c; }
+
+    @keyframes pulse-yellow {
+      0%, 100% { box-shadow: 0 0 8px 3px #fdd83577; }
+      50%       { box-shadow: 0 0 16px 7px #fdd835cc; }
+    }
+    @keyframes pulse-red {
+      0%, 100% { box-shadow: 0 0 8px 3px #e5393577; }
+      50%       { box-shadow: 0 0 18px 8px #e53935cc; }
+    }
+
+    /* ── Mistake details table ──────────────────────── */
+    .mistakes-card-inner {
+      overflow-x: visible;
+      border-radius: 0 0 10px 10px;
+    }
+    .mistake-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+    }
+    .mistake-table thead tr {
+      background: #212121;
+    }
+    .mistake-table th {
+      color: rgba(255,255,255,.75);
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 9.5px;
+      letter-spacing: .08em;
+      padding: 8px 10px;
+      text-align: left;
+      white-space: nowrap;
+      border: none;
+    }
+    .mistake-table th:first-child { border-radius: 10px 0 0 0; }
+    .mistake-table th:last-child  { border-radius: 0 10px 0 0; }
+
+    .mistake-table tbody tr {
+      transition: background .12s;
+    }
+    .mistake-table tbody tr:nth-child(even) { background: #fafafa; }
+    .mistake-table tbody tr:hover           { background: #f0f4ff; }
+
+    .mistake-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+      white-space: normal;
+      word-break: break-word;
+      font-variant-numeric: tabular-nums;
+      font-size: 12px;
+      color: var(--text);
+    }
+    .mistake-table tbody tr:last-child td { border-bottom: none; }
+
+    /* Wire cells – monospace pill */
+    .wire-cell {
+      font-family: 'Consolas', 'Cascadia Code', monospace;
+      font-size: 12px;
+      background: #f5f5f5;
+      border: 1px solid #e0e0e0;
+      border-radius: 5px;
+      padding: 2px 7px;
+      display: inline-block;
+      color: #1a237e;
+      font-weight: 600;
+    }
+    /* Connector cells */
+    .con-cell {
+      font-family: 'Consolas', 'Cascadia Code', monospace;
+      font-size: 11px;
+      color: #37474f;
+    }
+    .con-cell span.cav {
+      color: #b0bec5;
+      font-size: 10px;
+    }
+
+    /* Row type accent stripe */
+    .mistake-table tbody tr td:first-child {
+      border-left: 4px solid transparent;
+    }
+    .mistake-table tbody tr.inv-row td:first-child  { border-left-color: #e65100; }
+    .mistake-table tbody tr.poss-row td:first-child { border-left-color: #1565c0; }
+
+    .type-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 9px;
+      border-radius: 20px;
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: .03em;
+      white-space: nowrap;
+    }
+    .type-badge::before {
+      content: '';
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .type-badge.inv  { background: #fff3e0; color: #bf360c; }
+    .type-badge.inv::before  { background: #e65100; }
+    .type-badge.poss { background: #e3f2fd; color: #0d47a1; }
+    .type-badge.poss::before { background: #1565c0; }
+  </style>
+</head>
+<body>
+
+<header>
+  <span class="logo"><img src="/logo.jpg" alt="YAZAKI"></span>
+  <span class="post-chip" id="header-post">POSTE —</span>
+  <span class="hspacer"></span>
+  <span id="op-id"></span>
+  <span id="conn-dot"></span>
+</header>
+
+<!-- ── Alert ampoule strip ───────────────────── -->
+<div id="alert-strip">
+  <div class="ampoule-card" id="amp-yellow">
+    <div class="ampoule-bulb" id="bulb-yellow"></div>
+    <span class="ampoule-msg">Demande d'aide escalad&eacute;e</span>
+  </div>
+  <div class="ampoule-card" id="amp-red">
+    <div class="ampoule-bulb" id="bulb-red"></div>
+    <span class="ampoule-msg">Ligne arr&ecirc;t&eacute;e</span>
+  </div>
+</div>
+
+
+
+<main>
+
+  <!-- ── SCAN ───────────────────────────── -->
+  <div class="screen active" id="screen-scan">
+    <div class="card">
+      <div class="scan-hint">Badgez votre identifiant</div>
+      <input id="badge-input" type="text" placeholder="ID opérateur"
+             autocomplete="off" spellcheck="false" inputmode="text">
+    </div>
+  </div>
+
+  <!-- ── IDLE ───────────────────────────── -->
+  <div class="screen" id="screen-idle">
+    <div class="card">
+      <div id="idle-msg">Prêt</div>
+    </div>
+    <button class="btn btn-accept" id="btn-accept" onclick="acceptHarness()">ACCEPTER</button>
+    <button class="btn btn-logout" onclick="logout()">Déconnexion</button>
+  </div>
+
+  <!-- ── WORKING ────────────────────────── -->
+  <div class="screen" id="screen-work">
+    <div class="card">
+      <div class="ref-label">Harness</div>
+      <div id="work-ref">—</div>
+      <div class="timer-row">
+        <span id="elapsed">0:00</span>
+        <span id="ct-of" class="ct-of">/ — s</span>
+      </div>
+      <div id="prog-wrap"><div id="prog-bar"></div></div>
+    </div>
+
+    <div id="late-banner">⚠&nbsp; VOUS ÊTES EN RETARD</div>
+
+    <div style="display:flex; justify-content:center; gap:8px; margin:4px 0;">
+      <img src="/default.JPG"  alt="Risque réclamation client" style="max-height:220px; max-width:49%; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,.25);">
+      <img src="/defailt2.JPG" alt="Risque réclamation client" style="max-height:220px; max-width:49%; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,.25);">
+    </div>
+
+    <div class="card" id="mistakes-card" style="padding:0; overflow:hidden;">
+      <div style="padding:16px 20px 10px;">
+        <div class="mistakes-hdr">Points de vigilance</div>
+      </div>
+      <div id="mistakes-list" style="padding:0 0 0 0;"><div style="padding:0 20px 16px;"><span class="no-mistakes">Aucun défaut référencé</span></div></div>
+    </div>
+
+    <button class="btn btn-done" id="btn-done" onclick="markDone()">TERMINÉ</button>
+    <button class="btn btn-logout" onclick="logout()">Déconnexion</button>
+  </div>
+
+</main>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const lineMatch = location.pathname.match(/\/line\/(\d+)\//); 
+const lineId    = lineMatch ? lineMatch[1] : '1';
+const params   = new URLSearchParams(location.search);
+const postId   = +( params.get('post') ?? '1' );
+let operatorId = null;
+let ctPost     = 0;
+let ctGlobal   = 0;  // global line cycle time — used for bar progress (matches CTMB)
+let startedAt  = 0;
+let timerH     = null;
+let currentRef = null; // tracks displayed harness — prevents double showWork
+let isWarn     = false;  // 80% reached → yellow
+let isLate     = false;  // 100% reached → red
+
+// ── Header ────────────────────────────────────────────────
+document.getElementById('header-post').textContent = `L${lineId} — POSTE ${postId}`;
+document.getElementById('badge-input').focus();
+
+// ── Socket.io ─────────────────────────────────────────────
+const socket = io();
+socket.emit('join:post', { lineId, postId });
+socket.on('connect',    () => dot('ok'));
+socket.on('disconnect', () => dot('fail'));
+
+socket.on('harness:new', data => { if (operatorId && data.reference !== currentRef) showWork(data); });
+socket.on('harness:done', () => { stopTimer(); showIdle(); refreshIdleState(); });
+
+// ── Line alert ampoules ───────────────────────────────────────────────────────
+socket.on('line:alert', data => {
+  if (+data.lineId === +lineId) setAlert(data.status);
+});
+
+let currentAlertStatus = 'normal';
+
+function setAlert(status) {
+  currentAlertStatus = status;
+  document.getElementById('amp-yellow').classList.toggle('yellow-on', status === 'yellow');
+  document.getElementById('amp-red').classList.toggle('red-on',    status === 'red');
+}
+
+// Fetch initial alert state
+fetch(`/api/lines/${lineId}/alert`).then(r => r.json()).then(a => setAlert(a.status)).catch(() => {});
+
+function dot(cls) {
+  document.getElementById('conn-dot').className = cls;
+}
+
+// ── Scan / login ──────────────────────────────────────────
+document.getElementById('badge-input').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const val = e.target.value.trim();
+  if (!val) return;
+  e.target.value = '';
+  operatorId = val;
+  document.getElementById('op-id').textContent = val;
+  show('screen-idle');
+  refreshIdleState();
+});
+
+function logout() {
+  operatorId = null;
+  document.getElementById('op-id').textContent = '';
+  stopTimer();
+  show('screen-scan');
+  setTimeout(() => document.getElementById('badge-input').focus(), 100);
+}
+
+// ── Queue state ───────────────────────────────────────────
+async function refreshIdleState() {
+  const btn = document.getElementById('btn-accept');
+  const msg = document.getElementById('idle-msg');
+
+  if (postId > 1) {
+    // Posts 2+ receive harness automatically when previous post finishes
+    btn.style.display = 'none';
+    msg.textContent = 'En attente du JIG (poste précédent)…';
+    return;
+  }
+
+  const q   = await fetch(`/api/lines/${lineId}/queue`).then(r => r.json());
+  const has = q.some(i => i.status === 'pending');
+  if (has) {
+    btn.style.display = '';
+    const ref = q.find(i => i.status === 'pending')?.reference ?? '';
+    msg.textContent = ref ? `Prochain : ${ref}` : 'Prochain harness disponible';
+  } else {
+    btn.style.display = 'none';
+    msg.textContent = 'En attente — file vide';
+  }
+}
+
+// ── Accept ────────────────────────────────────────────────
+async function acceptHarness() {
+  document.getElementById('btn-accept').disabled = true;
+  const res  = await fetch(`/api/lines/${lineId}/posts/${postId}/accept`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ operator_id: operatorId })
+  });
+  if (!res.ok) {
+    const { error } = await res.json();
+    document.getElementById('idle-msg').textContent = error || 'Erreur';
+    document.getElementById('btn-accept').disabled = false;
+    return;
+  }
+  const data = await res.json();
+  // socket 'harness:new' already called showWork — only call it here as a fallback
+  // if the socket event was missed (e.g. brief disconnect)
+  if (data.reference !== currentRef) {
+    showWork(data);
+  }
+}
+
+// ── Mark done ─────────────────────────────────────────────
+async function markDone() {
+  document.getElementById('btn-done').disabled = true;
+  await fetch(`/api/lines/${lineId}/posts/${postId}/done`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}'
+  });
+  stopTimer();
+  showIdle();
+  await refreshIdleState();
+}
+
+// ── Screen transitions ────────────────────────────────────
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function showIdle() {
+  stopTimer();
+  currentRef = null;
+  isWarn = false;
+  isLate = false;
+  postAlert('normal');
+  show('screen-idle');
+  document.getElementById('btn-accept').disabled = false;
+}
+
+function showWork(data) {
+  currentRef = data.reference ?? null;
+  ctPost   = data.ctPost   ?? 0;
+  ctGlobal = data.ctGlobal ?? ctPost; // global CT drives the bar (same as CTMB)
+  startedAt = Date.now() - (data.elapsedMs ?? 0); // avoid clock skew: use local clock - elapsed
+
+  document.getElementById('work-ref').textContent  = data.reference ?? '—';
+  document.getElementById('ct-of').textContent     = ctGlobal ? `/ ${ctGlobal}s` : '';
+
+  // Mistakes — rich table if mistakeDetails available, else fallback to string list
+  const list = document.getElementById('mistakes-list');
+  const details = data.mistakeDetails || [];
+  const ms      = data.mistakes || [];
+
+  if (details.length) {
+    const renderCon = v => {
+      if (!v) return '<span class="con-cell">—</span>';
+      const at = v.indexOf('@');
+      if (at === -1) return `<span class="con-cell">${esc(v)}</span>`;
+      return `<span class="con-cell">${esc(v.slice(0,at))}<span class="cav">@${esc(v.slice(at+1))}</span></span>`;
+    };
+    list.innerHTML =
+      `<div class="mistakes-card-inner"><table class="mistake-table">
+        <thead><tr>
+          <th>Type</th>
+          <th>Fil 1</th><th>Fil 2</th>
+          <th>Con1/Cav</th><th>Con2/Cav</th>
+          <th>Con3/Cav</th><th>Con4/Cav</th>
+        </tr></thead>
+        <tbody>` +
+      details.map(d => {
+        const isPoss = d.type.toLowerCase().includes('possible');
+        const rowCls = isPoss ? 'poss-row' : 'inv-row';
+        const badgeCls = isPoss ? 'poss' : 'inv';
+        return `<tr class="${rowCls}">
+          <td><span class="type-badge ${badgeCls}">${esc(d.type)}</span></td>
+          <td><span class="wire-cell">${esc(d.wire1)||'—'}</span></td>
+          <td><span class="wire-cell">${esc(d.wire2)||'—'}</span></td>
+          <td>${renderCon(d.con1)}</td>
+          <td>${renderCon(d.con2)}</td>
+          <td>${renderCon(d.con3)}</td>
+          <td>${renderCon(d.con4)}</td>
+        </tr>`;
+      }).join('') +
+      `</tbody></table></div>`;
+  } else if (ms.length) {
+    list.innerHTML = `<div style="padding:0 20px 16px;">${ms.map(m => `<div class="mistake-row"><div class="mdot"></div><span>${esc(m)}</span></div>`).join('')}</div>`;
+  } else {
+    list.innerHTML = '<div style="padding:0 20px 16px;"><span class="no-mistakes">Aucun d\u00e9faut r\u00e9f\u00e9renc\u00e9</span></div>';
+  }
+
+  isWarn = false;
+  isLate = false;
+  document.getElementById('late-banner').classList.remove('show');
+  document.getElementById('btn-done').classList.remove('late');
+  document.getElementById('btn-done').disabled = false;
+  const _bar = document.getElementById('prog-bar');
+  _bar.style.transition = 'none';   // instant snap — no animation from old position
+  _bar.style.width = '0%';
+  _bar.className = '';
+  _bar.getBoundingClientRect();      // force reflow so reset takes effect before timer starts
+  _bar.style.transition = '';        // restore transition for normal filling
+
+  show('screen-work');
+  startTimer();
+}
+
+// ── Timer ─────────────────────────────────────────────────
+function startTimer() { stopTimer(); timerH = setInterval(tick, 500); tick(); }
+function stopTimer()  { if (timerH) { clearInterval(timerH); timerH = null; } }
+
+function tick() {
+  const elapsed = Math.floor((Date.now() - startedAt) / 1000);
+  const m = Math.floor(elapsed / 60);
+  const s = elapsed % 60;
+  const el = document.getElementById('elapsed');
+  el.textContent = `${m}:${String(s).padStart(2, '0')}`;
+
+  const ctAlert = ctGlobal > 0 ? ctGlobal : ctPost > 0 ? ctPost : 60; // use global CT to match CTMB
+
+  const rawRatio = elapsed / ctAlert;
+  const ratio    = Math.min(1, rawRatio);
+  const bar      = document.getElementById('prog-bar');
+  bar.style.width = `${Math.round(ratio * 100)}%`;
+  if (ratio < 0.75)    bar.className = '';
+  else if (ratio < 0.95) bar.className = 'warn';
+  else                 bar.className = 'late';
+
+  // 100% → red ampoule + late banner
+  if (rawRatio >= 1 && !isLate) {
+    isLate = true;
+    el.className = 'late';
+    document.getElementById('late-banner').classList.add('show');
+    document.getElementById('btn-done').classList.add('late');
+    postAlert('red');
+  }
+  // 75% → yellow ampoule + beep (same moment bar turns yellow)
+  else if (rawRatio >= 0.75 && !isWarn) {
+    isWarn = true;
+    postAlert('yellow');
+    playBeep();
+  }
+  else if (rawRatio < 0.75) {
+    el.className = '';
+  }
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function playBeep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.6);
+  } catch(e) {}
+}
+
+function postAlert(status) {
+  setAlert(status); // immediate visual — don't wait for socket roundtrip
+  fetch(`/api/lines/${lineId}/alert`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status })
+  }).catch(() => {});
+}
+
+// ── Restore state on page load ────────────────────────────
+(async () => {
+  const res   = await fetch(`/api/lines/${lineId}/posts/${postId}`);
+  const state = await res.json();
+  if (state.status === 'active' && state.reference) {
+    // Restore working screen without needing badge scan
+    operatorId = state.operator_id || '?';
+    document.getElementById('op-id').textContent = operatorId;
+    showWork({
+      reference:      state.reference,
+      ctPost:         state.harness?.ct_post   ?? 0,
+      ctGlobal:       state.harness?.ct_global ?? state.harness?.ct_post ?? 0,
+      mistakes:       state.harness?.mistakes   ?? [],
+      mistakeDetails: state.mistakeDetails      ?? [],
+      elapsedMs:      state.elapsedMs           ?? 0
+    });
+  }
+})();
+</script>
+</body>
+</html>

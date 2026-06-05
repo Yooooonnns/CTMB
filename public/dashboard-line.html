@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YAZAKI – Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f0f2f5;--card:#fff;--border:#e2e5ea;
+  --text:#1a1d23;--dim:#6b7280;
+  --blue:#1565c0;--green:#2e7d32;--red:#c62828;--amber:#e65100;
+  --header:#0d1b2e;
+}
+body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* ── Header ── */
+header{
+  background:var(--header);color:#fff;
+  display:flex;align-items:center;gap:14px;padding:0 28px;height:60px;
+  position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.3);
+}
+.logo img{height:44px;width:auto;display:block}
+.btn-back{
+  display:inline-flex;align-items:center;gap:6px;
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
+  color:#a0aec0;border-radius:6px;padding:6px 13px;font-size:13px;font-weight:600;
+  cursor:pointer;text-decoration:none;transition:background .15s,color .15s;white-space:nowrap;
+}
+.btn-back:hover{background:rgba(255,255,255,.18);color:#fff}
+.page-title{font-size:17px;font-weight:800;color:#fff;letter-spacing:.01em}
+.line-subtitle{font-size:13px;color:#94a3b8;font-weight:500}
+.hsp{flex:1}
+.refresh-badge{
+  font-size:11px;color:#4a6080;background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.08);border-radius:5px;padding:4px 10px;
+}
+
+/* ── Layout ── */
+.main{padding:28px;display:flex;flex-direction:column;gap:24px}
+
+/* ── Section titles ── */
+.sec-title{
+  font-size:11px;font-weight:800;color:var(--dim);
+  text-transform:uppercase;letter-spacing:.07em;margin-bottom:14px;
+}
+
+/* ── KPI strip ── */
+.kpi-strip{display:flex;gap:14px;flex-wrap:wrap}
+.kpi{
+  flex:1;min-width:130px;background:var(--card);border-radius:12px;
+  padding:16px 18px;box-shadow:0 1px 5px rgba(0,0,0,.08);
+  display:flex;flex-direction:column;gap:4px;
+}
+.kpi .label{font-size:10px;font-weight:800;color:var(--dim);text-transform:uppercase;letter-spacing:.06em}
+.kpi .value{font-size:26px;font-weight:900;line-height:1;font-variant-numeric:tabular-nums}
+.kpi .sub{font-size:11px;color:var(--dim)}
+.kpi.late .value{color:var(--amber)}
+.kpi.critical .value{color:var(--red)}
+.kpi.good .value{color:var(--green)}
+.kpi.neutral .value{color:var(--blue)}
+
+/* ── Filter bar ── */
+.filter-bar{
+  background:var(--card);border-radius:12px;padding:14px 18px;
+  box-shadow:0 1px 5px rgba(0,0,0,.08);
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+}
+.filter-bar label{font-size:12px;font-weight:700;color:var(--dim)}
+.filter-bar select{
+  border:1px solid var(--border);border-radius:6px;padding:6px 10px;
+  font-size:13px;color:var(--text);background:#fff;cursor:pointer;
+}
+.filter-bar select:focus{outline:none;border-color:var(--blue)}
+.filter-bar .pill{
+  font-size:11px;font-weight:700;padding:4px 11px;border-radius:12px;cursor:pointer;
+  border:1.5px solid transparent;background:#f0f2f5;color:var(--dim);transition:all .15s;
+}
+.filter-bar .pill.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.filter-bar .pill:hover:not(.active){background:#e2e5ea}
+
+/* ── Late ranking table ── */
+.table-card{background:var(--card);border-radius:12px;box-shadow:0 1px 5px rgba(0,0,0,.08);overflow:hidden}
+.table-card table{width:100%;border-collapse:collapse}
+.table-card thead th{
+  background:#f8f9fb;border-bottom:1.5px solid var(--border);
+  font-size:10px;font-weight:800;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;
+  padding:10px 16px;text-align:left;
+}
+.table-card thead th.right{text-align:right}
+.table-card tbody tr:not(:last-child){border-bottom:1px solid #f0f2f5}
+.table-card tbody tr:hover{background:#fafbfc}
+.table-card tbody td{padding:11px 16px;font-size:13px;vertical-align:middle}
+.table-card tbody td.right{text-align:right;font-variant-numeric:tabular-nums}
+.post-pill{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:30px;height:30px;border-radius:50%;font-size:12px;font-weight:800;
+  background:#e8f0fe;color:var(--blue);
+}
+.bar-cell{width:140px}
+.mini-bar-track{height:6px;background:#f0f2f5;border-radius:3px;overflow:hidden}
+.mini-bar-fill{height:100%;border-radius:3px;transition:width .4s}
+.rate-ok{color:var(--green)}
+.rate-warn{color:var(--amber)}
+.rate-crit{color:var(--red);font-weight:800}
+.delay-cell{font-weight:700}
+.no-data{padding:32px;text-align:center;color:var(--dim);font-size:13px}
+
+/* ── Chart cards ── */
+.charts-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:18px}
+.chart-card{background:var(--card);border-radius:12px;padding:18px 20px;box-shadow:0 1px 5px rgba(0,0,0,.08)}
+.chart-card-title{font-size:12px;font-weight:800;color:var(--text);margin-bottom:4px}
+.chart-card-sub{font-size:11px;color:var(--dim);margin-bottom:14px}
+.chart-wrap{position:relative;height:180px}
+.chart-wrap canvas{width:100%!important;height:100%!important}
+
+/* ── Global chart ── */
+.chart-card.wide{grid-column:1/-1}
+.chart-card.wide .chart-wrap{height:220px}
+
+.empty-state{
+  text-align:center;padding:60px 20px;
+  color:var(--dim);font-size:13px;
+}
+.chart-card{cursor:pointer;transition:box-shadow .15s}
+.chart-card:hover{box-shadow:0 4px 16px rgba(21,101,192,.18)}
+.table-card tbody tr{cursor:pointer}
+.table-card tbody tr:hover{background:#f0f4ff}
+
+.modal-overlay{
+  position:fixed;inset:0;z-index:1000;
+  background:rgba(0,0,0,.55);backdrop-filter:blur(3px);
+  display:flex;align-items:center;justify-content:center;
+}
+.modal-box{
+  background:var(--card);border-radius:14px;
+  width:min(96vw,1160px);max-height:92vh;
+  overflow:hidden;display:flex;flex-direction:column;
+  box-shadow:0 24px 70px rgba(0,0,0,.45);
+}
+.modal-header{
+  display:flex;align-items:flex-start;justify-content:space-between;
+  padding:20px 26px 16px;border-bottom:1px solid var(--border);
+}
+.modal-title{font-size:16px;font-weight:800}
+.modal-sub{font-size:12px;color:var(--dim);margin-top:3px}
+.modal-close{
+  background:none;border:none;font-size:20px;cursor:pointer;
+  color:var(--dim);padding:2px 8px;border-radius:6px;line-height:1;
+  transition:background .15s;flex-shrink:0;
+}
+.modal-close:hover{background:#f0f2f5;color:var(--text)}
+.modal-stats{
+  display:flex;gap:28px;padding:14px 26px;
+  border-bottom:1px solid var(--border);flex-wrap:wrap;
+  background:#fafbfc;
+}
+.modal-stat .label{font-size:10px;font-weight:800;color:var(--dim);text-transform:uppercase;letter-spacing:.06em}
+.modal-stat .val{font-size:22px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1.2}
+.modal-chart-wrap{
+  padding:22px 26px;flex:1;min-height:420px;
+  position:relative;overflow:hidden;
+}
+.modal-chart-wrap canvas{width:100%!important;height:100%!important}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="logo"><img src="/logo.jpg" alt="YAZAKI"></span>
+  <a class="btn-back" id="btn-back" href="/supervision.html">← Supervision</a>
+  <div style="display:flex;flex-direction:column;gap:2px">
+    <span class="page-title">Dashboard Performance</span>
+    <span class="line-subtitle" id="line-subtitle">Chargement…</span>
+  </div>
+  <span class="hsp"></span>
+  <span class="refresh-badge" id="refresh-label">—</span>
+</header>
+
+<div class="main">
+
+  <!-- KPI strip -->
+  <div>
+    <div class="sec-title">Indicateurs globaux</div>
+    <div class="kpi-strip" id="kpi-strip">
+      <div class="kpi neutral"><span class="label">Cycles total</span><span class="value" id="kpi-total">—</span></div>
+      <div class="kpi late"><span class="label">Taux de retard</span><span class="value" id="kpi-late-rate">—</span><span class="sub" id="kpi-late-abs">—</span></div>
+      <div class="kpi neutral"><span class="label">CT moyen global</span><span class="value" id="kpi-avg-ct">—</span><span class="sub">secondes</span></div>
+      <div class="kpi late"><span class="label">Retard moyen</span><span class="value" id="kpi-avg-delay">—</span><span class="sub">secondes / cycle tardif</span></div>
+    </div>
+  </div>
+
+  <!-- Filter + Late ranking -->
+  <div>
+    <div class="sec-title">Classement des postes par taux de retard</div>
+    <div class="filter-bar" style="margin-bottom:12px">
+      <label>Poste :</label>
+      <select id="filter-post"><option value="all">Tous</option></select>
+      <label style="margin-left:8px">Période :</label>
+      <span class="pill active" data-period="all">Tout</span>
+      <span class="pill" data-period="today">Aujourd'hui</span>
+      <span class="pill" data-period="1h">1h</span>
+      <span class="pill" data-period="30m">30 min</span>
+    </div>
+    <div class="table-card">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Poste</th>
+            <th class="right">Cycles</th>
+            <th class="right">Tardifs</th>
+            <th class="right">Taux retard</th>
+            <th class="bar-cell">Visualisation</th>
+            <th class="right">Retard moy.</th>
+            <th class="right">CT moyen</th>
+            <th class="right">CT cible moy.</th>
+          </tr>
+        </thead>
+        <tbody id="late-table-body">
+          <tr><td colspan="9" class="no-data">Chargement…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Evolution charts per post -->
+  <div>
+    <div class="sec-title">Évolution du temps de cycle par poste</div>
+    <div class="charts-grid" id="charts-grid">
+      <div class="empty-state">Aucune donnée de cycle disponible.</div>
+    </div>
+  </div>
+
+  <div>
+    <div class="sec-title">Chronologie globale (tous postes)</div>
+    <div class="chart-card wide" id="global-card">
+      <div class="chart-card-title">Durée par cycle — tous postes</div>
+      <div class="chart-card-sub">200 derniers cycles · cliquez pour le détail</div>
+      <div class="chart-wrap"><canvas id="chart-global"></canvas></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="modal-overlay" id="detail-modal" style="display:none">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="modal-title">—</div>
+        <div class="modal-sub" id="modal-sub">—</div>
+      </div>
+      <button class="modal-close" id="modal-close">&#x2715;</button>
+    </div>
+    <div class="modal-stats" id="modal-stats"></div>
+    <div class="modal-chart-wrap"><canvas id="chart-detail"></canvas></div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+'use strict';
+
+const params   = new URLSearchParams(location.search);
+const lineId   = +params.get('line') || 1;
+let period     = 'all';
+let postFilter = 'all';
+let lastData   = null;
+let lastGlobalEv = [];
+const postCharts = {};
+let globalChart  = null;
+let detailChart  = null;
+
+document.getElementById('btn-back').href = `/supervision-line.html?line=${lineId}`;
+
+document.querySelectorAll('.pill[data-period]').forEach(pill => {
+  pill.addEventListener('click', () => {
+    document.querySelectorAll('.pill[data-period]').forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+    period = pill.dataset.period;
+    if (lastData) render(lastData);
+  });
+});
+
+document.getElementById('filter-post').addEventListener('change', e => {
+  postFilter = e.target.value;
+  if (lastData) render(lastData);
+});
+
+const modal      = document.getElementById('detail-modal');
+const modalTitle = document.getElementById('modal-title');
+const modalSub   = document.getElementById('modal-sub');
+const modalStats = document.getElementById('modal-stats');
+
+document.getElementById('modal-close').addEventListener('click', closeModal);
+modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+function closeModal() {
+  modal.style.display = 'none';
+  if (detailChart) { detailChart.destroy(); detailChart = null; }
+}
+
+async function openPostDetail(postId) {
+  const ev = await fetch(`/api/lines/${lineId}/history?post=${postId}`).then(r => r.json()).catch(() => []);
+  if (!ev.length) return;
+  const late = ev.filter(e => e.duration > e.ct_post);
+  const lateRate = round1(late.length / ev.length * 100);
+  const avgCt    = round1(avg(ev.map(e => e.duration)));
+  const avgRef   = round1(avg(ev.map(e => e.ct_post)));
+  const avgDelay = late.length ? round1(avg(late.map(e => e.duration - e.ct_post))) : 0;
+  const color    = lateRate >= 30 ? 'var(--red)' : lateRate >= 10 ? 'var(--amber)' : 'var(--green)';
+
+  modalTitle.textContent = `Poste ${postId} — Détail des cycles`;
+  modalSub.textContent   = `${ev.length} cycles enregistrés`;
+  modalStats.innerHTML   = [
+    { label: 'Cycles',       val: ev.length,                                  color: '' },
+    { label: 'Tardifs',      val: late.length,                                color },
+    { label: 'Taux retard',  val: lateRate + '%',                             color },
+    { label: 'CT moyen',     val: avgCt + 's',                                color: '' },
+    { label: 'CT cible moy.',val: avgRef + 's',                               color: '' },
+    { label: 'Retard moy.',  val: avgDelay > 0 ? '+' + avgDelay + 's' : '—', color: avgDelay > 0 ? 'var(--amber)' : '' },
+  ].map(s => `<div class="modal-stat"><div class="label">${s.label}</div><div class="val" style="color:${s.color||'inherit'}">${s.val}</div></div>`).join('');
+
+  modal.style.display = 'flex';
+  if (detailChart) { detailChart.destroy(); detailChart = null; }
+
+  const labels    = ev.map((_, i) => '#' + (i + 1));
+  const durations = ev.map(e => e.duration);
+  const targets   = ev.map(e => e.ct_post);
+
+  detailChart = new Chart(document.getElementById('chart-detail'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'CT réel (s)',
+          data: durations,
+          borderColor: '#1565c0',
+          backgroundColor: 'rgba(21,101,192,.07)',
+          borderWidth: 2,
+          pointRadius: ev.length > 120 ? 2 : 4,
+          pointBackgroundColor: durations.map((d, i) => d > targets[i] ? '#c62828' : '#2e7d32'),
+          pointHoverRadius: 7,
+          fill: true,
+          tension: 0.3
+        },
+        {
+          label: 'CT cible (s)',
+          data: targets,
+          borderColor: '#e65100',
+          borderWidth: 1.5,
+          borderDash: [5, 4],
+          pointRadius: 0,
+          pointHoverRadius: 0,
+          fill: false,
+          tension: 0
+        }
+      ]
+    },
+    plugins: [crosshairPlugin],
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: true, position: 'bottom', labels: { font: { size: 12 }, boxWidth: 16 } },
+        tooltip: {
+          callbacks: {
+            title: (items) => {
+              const e = ev[items[0].dataIndex];
+              return `Cycle ${items[0].label} · ${e.reference || '—'} · ${new Date(e.ts).toLocaleTimeString('fr-FR')}`;
+            },
+            label: (item) => {
+              const e = ev[item.dataIndex];
+              if (item.datasetIndex === 0) {
+                const diff = round1(e.duration - e.ct_post);
+                return ` CT réel : ${e.duration}s  ${diff > 0 ? '▲ +' + diff + 's' : '✓'}`;
+              }
+              return ` CT cible : ${e.ct_post}s`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { font: { size: 10 }, maxTicksLimit: 20, color: '#9ca3af' }, grid: { display: false } },
+        y: { ticks: { font: { size: 11 }, color: '#9ca3af' }, grid: { color: '#f0f2f5' }, beginAtZero: false }
+      }
+    }
+  });
+}
+
+function openGlobalDetail(ev) {
+  if (!ev.length) return;
+  const late     = ev.filter(e => e.duration > e.ct_post);
+  const lateRate = round1(late.length / ev.length * 100);
+  const color    = lateRate >= 30 ? 'var(--red)' : lateRate >= 10 ? 'var(--amber)' : 'var(--green)';
+
+  modalTitle.textContent = 'Chronologie globale — tous postes';
+  modalSub.textContent   = `${ev.length} cycles affichés`;
+  modalStats.innerHTML   = [
+    { label: 'Cycles',      val: ev.length,      color: '' },
+    { label: 'Tardifs',     val: late.length,    color },
+    { label: 'Taux retard', val: lateRate + '%', color },
+  ].map(s => `<div class="modal-stat"><div class="label">${s.label}</div><div class="val" style="color:${s.color||'inherit'}">${s.val}</div></div>`).join('');
+
+  modal.style.display = 'flex';
+  if (detailChart) { detailChart.destroy(); detailChart = null; }
+
+  const labels    = ev.map((_, i) => '#' + (i + 1));
+  const durations = ev.map(e => e.duration);
+  const targets   = ev.map(e => e.ct_post);
+  const colors    = durations.map((d, i) => d > targets[i] ? 'rgba(198,40,40,.85)' : 'rgba(46,125,50,.85)');
+
+  detailChart = new Chart(document.getElementById('chart-detail'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'CT réel (s)', data: durations, backgroundColor: colors, borderRadius: 3, barPercentage: 0.75 },
+        { label: 'CT cible (s)', data: targets, type: 'line', borderColor: '#e65100', borderWidth: 1.5,
+          borderDash: [5, 4], pointRadius: 0, fill: false, tension: 0, order: 0 }
+      ]
+    },
+    plugins: [crosshairPlugin],
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: true, position: 'bottom', labels: { font: { size: 12 }, boxWidth: 16 } },
+        tooltip: {
+          callbacks: {
+            title: (items) => {
+              const e = ev[items[0].dataIndex];
+              return `Cycle ${items[0].label} · Poste ${e.postId} · ${e.reference || '—'}`;
+            },
+            label: (item) => {
+              const e = ev[item.dataIndex];
+              if (item.datasetIndex === 0) {
+                const diff = round1(e.duration - e.ct_post);
+                return ` CT réel : ${e.duration}s  ${diff > 0 ? '▲ +' + diff + 's' : '✓'}`;
+              }
+              return ` CT cible : ${e.ct_post}s`;
+            },
+            afterLabel: (item) => item.datasetIndex === 0
+              ? ` ${new Date(ev[item.dataIndex].ts).toLocaleTimeString('fr-FR')}` : ''
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { font: { size: 9 }, maxTicksLimit: 20, color: '#9ca3af' }, grid: { display: false } },
+        y: { ticks: { font: { size: 11 }, color: '#9ca3af' }, grid: { color: '#f0f2f5' }, beginAtZero: false }
+      }
+    }
+  });
+}
+
+const crosshairPlugin = {
+  id: 'crosshair',
+  afterDraw(chart) {
+    if (!chart.tooltip._active?.length) return;
+    const ctx = chart.ctx;
+    const x = chart.tooltip._active[0].element.x;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(x, chart.chartArea.top);
+    ctx.lineTo(x, chart.chartArea.bottom);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(0,0,0,.22)';
+    ctx.setLineDash([4, 4]);
+    ctx.stroke();
+    ctx.restore();
+  }
+};
+
+async function load() {
+  try {
+    const data = await fetch(`/api/lines/${lineId}/dashboard`).then(r => r.json());
+    lastData = data;
+    document.getElementById('line-subtitle').textContent = data.lineName || `Ligne ${lineId}`;
+    document.title = `Dashboard — ${data.lineName || 'Ligne ' + lineId}`;
+
+    const sel = document.getElementById('filter-post');
+    if (sel.options.length === 1) {
+      data.posts.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.postId; opt.textContent = `Poste ${p.postId}`;
+        sel.appendChild(opt);
+      });
+    }
+
+    render(data);
+    document.getElementById('refresh-label').textContent =
+      'Mis à jour : ' + new Date().toLocaleTimeString('fr-FR');
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+function cutoffTs() {
+  const now = Date.now();
+  if (period === 'today') { const d = new Date(); d.setHours(0,0,0,0); return d.getTime(); }
+  if (period === '1h')  return now - 3600000;
+  if (period === '30m') return now - 1800000;
+  return 0;
+}
+
+function render(data) {
+  const cut = cutoffTs();
+
+  const filteredPosts = data.posts.map(p => {
+    const ev   = cut > 0 ? p.evolution.filter(e => e.ts >= cut) : p.evolution;
+    const late = ev.filter(e => e.duration > e.ct_post);
+    return {
+      ...p,
+      evolution: ev,
+      filteredTotal:    ev.length,
+      filteredLate:     late.length,
+      filteredLateRate: ev.length ? round1(late.length / ev.length * 100) : 0,
+      filteredAvgCt:    ev.length   ? round1(avg(ev.map(e => e.duration)))              : null,
+      filteredAvgRef:   ev.length   ? round1(avg(ev.map(e => e.ct_post)))               : null,
+      filteredAvgDelay: late.length ? round1(avg(late.map(e => e.duration - e.ct_post))): 0
+    };
+  });
+
+  const visible = postFilter === 'all' ? filteredPosts : filteredPosts.filter(p => String(p.postId) === postFilter);
+
+  renderKpis(filteredPosts);
+  renderTable(visible);
+  renderPostCharts(visible);
+  renderGlobalChart(data.globalEvolution, cut);
+}
+
+function renderKpis(posts) {
+  const allCycles = posts.reduce((s, p) => s + p.filteredTotal, 0);
+  const allLate   = posts.reduce((s, p) => s + p.filteredLate,  0);
+  const lateRate  = allCycles ? round1(allLate / allCycles * 100) : 0;
+  const allCts    = posts.flatMap(p => p.evolution.map(e => e.duration));
+  const allDelays = posts.flatMap(p => p.evolution.filter(e => e.duration > e.ct_post).map(e => e.duration - e.ct_post));
+
+  setText('kpi-total',     allCycles);
+  setText('kpi-late-rate', lateRate + '%');
+  setText('kpi-late-abs',  allLate + ' tardifs');
+  setText('kpi-avg-ct',    allCts.length    ? round1(avg(allCts))    : '—');
+  setText('kpi-avg-delay', allDelays.length ? round1(avg(allDelays)) : '0');
+
+  const kpiEl = document.getElementById('kpi-late-rate').closest('.kpi');
+  kpiEl.className = 'kpi ' + (lateRate >= 30 ? 'critical' : lateRate >= 10 ? 'late' : 'good');
+}
+
+function renderTable(posts) {
+  const sorted = [...posts].sort((a, b) => b.filteredLateRate - a.filteredLateRate);
+  const tbody  = document.getElementById('late-table-body');
+
+  if (!sorted.length || sorted.every(p => p.filteredTotal === 0)) {
+    tbody.innerHTML = '<tr><td colspan="9" class="no-data">Aucun cycle enregistré pour cette période.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = sorted.map((p, i) => {
+    const rateClass = p.filteredLateRate >= 30 ? 'rate-crit' : p.filteredLateRate >= 10 ? 'rate-warn' : 'rate-ok';
+    const barColor  = p.filteredLateRate >= 30 ? '#c62828'  : p.filteredLateRate >= 10 ? '#e65100'  : '#2e7d32';
+    return `<tr data-post="${p.postId}">
+      <td><strong>${i+1}</strong></td>
+      <td><span class="post-pill">P${p.postId}</span></td>
+      <td class="right">${p.filteredTotal}</td>
+      <td class="right ${rateClass}">${p.filteredLate}</td>
+      <td class="right ${rateClass}">${p.filteredLateRate}%</td>
+      <td class="bar-cell"><div class="mini-bar-track"><div class="mini-bar-fill" style="width:${Math.min(p.filteredLateRate,100)}%;background:${barColor}"></div></div></td>
+      <td class="right delay-cell ${rateClass}">${p.filteredAvgDelay > 0 ? '+' + p.filteredAvgDelay + 's' : '—'}</td>
+      <td class="right">${p.filteredAvgCt  !== null ? p.filteredAvgCt  + 's' : '—'}</td>
+      <td class="right" style="color:var(--dim)">${p.filteredAvgRef !== null ? p.filteredAvgRef + 's' : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  tbody.querySelectorAll('tr[data-post]').forEach(row =>
+    row.addEventListener('click', () => openPostDetail(+row.dataset.post))
+  );
+}
+
+function renderPostCharts(posts) {
+  const grid     = document.getElementById('charts-grid');
+  const withData = posts.filter(p => p.evolution.length > 0);
+
+  if (!withData.length) {
+    grid.innerHTML = '<div class="empty-state">Aucune donnée de cycle disponible pour cette période.</div>';
+    Object.values(postCharts).forEach(c => c.destroy());
+    Object.keys(postCharts).forEach(k => delete postCharts[k]);
+    return;
+  }
+
+  const visibleIds = new Set(withData.map(p => p.postId));
+  [...grid.querySelectorAll('.chart-card')].forEach(el => {
+    const pid = +el.dataset.post;
+    if (!visibleIds.has(pid)) {
+      if (postCharts[pid]) { postCharts[pid].destroy(); delete postCharts[pid]; }
+      el.remove();
+    }
+  });
+  grid.querySelectorAll('.empty-state').forEach(e => e.remove());
+
+  withData.forEach(p => {
+    const ev        = p.evolution.slice(-50);
+    const labels    = ev.map((_, i) => '#' + (p.evolution.length - ev.length + i + 1));
+    const durations = ev.map(e => e.duration);
+    const targets   = ev.map(e => e.ct_post);
+
+    let card = grid.querySelector(`.chart-card[data-post="${p.postId}"]`);
+    if (!card) {
+      card = document.createElement('div');
+      card.className  = 'chart-card';
+      card.dataset.post = p.postId;
+      card.innerHTML  = `
+        <div class="chart-card-title">Poste ${p.postId}</div>
+        <div class="chart-card-sub" id="chart-sub-${p.postId}"></div>
+        <div class="chart-wrap"><canvas id="chart-post-${p.postId}"></canvas></div>`;
+      card.addEventListener('click', () => openPostDetail(p.postId));
+      grid.appendChild(card);
+    }
+
+    const sub = p.filteredLateRate > 0
+      ? `${p.filteredLateRate}% de retard · CT moy. ${p.filteredAvgCt}s · Retard moy. +${p.filteredAvgDelay}s`
+      : `${p.filteredTotal} cycles · CT moy. ${p.filteredAvgCt}s · Dans les temps`;
+    document.getElementById(`chart-sub-${p.postId}`).textContent = sub;
+
+    const canvas = document.getElementById(`chart-post-${p.postId}`);
+    if (postCharts[p.postId]) {
+      postCharts[p.postId].data.labels = labels;
+      postCharts[p.postId].data.datasets[0].data = durations;
+      postCharts[p.postId].data.datasets[0].pointBackgroundColor = durations.map((d, i) => d > targets[i] ? '#c62828' : '#2e7d32');
+      postCharts[p.postId].data.datasets[1].data = targets;
+      postCharts[p.postId].update('none');
+    } else {
+      postCharts[p.postId] = new Chart(canvas, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'CT réel (s)',
+              data: durations,
+              borderColor: '#1565c0',
+              backgroundColor: 'rgba(21,101,192,.08)',
+              borderWidth: 2,
+              pointRadius: 3,
+              pointBackgroundColor: durations.map((d, i) => d > targets[i] ? '#c62828' : '#2e7d32'),
+              pointHoverRadius: 5,
+              fill: true,
+              tension: 0.3
+            },
+            {
+              label: 'CT cible (s)',
+              data: targets,
+              borderColor: '#e65100',
+              borderWidth: 1.5,
+              borderDash: [5, 4],
+              pointRadius: 0,
+              fill: false,
+              tension: 0
+            }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false, animation: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 14 } },
+            tooltip: {
+              callbacks: {
+                title: (items) => {
+                  const e = ev[items[0].dataIndex];
+                  return `Cycle ${items[0].label} · ${e.reference || '—'}`;
+                },
+                label: (item) => {
+                  const e = ev[item.dataIndex];
+                  if (item.datasetIndex === 0) {
+                    const diff = round1(e.duration - e.ct_post);
+                    return ` CT réel : ${e.duration}s  ${diff > 0 ? '▲ +' + diff + 's' : '✓'}`;
+                  }
+                  return ` CT cible : ${e.ct_post}s`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: { ticks: { font: { size: 9 }, maxTicksLimit: 10, color: '#9ca3af' }, grid: { display: false } },
+            y: { ticks: { font: { size: 10 }, color: '#9ca3af' }, grid: { color: '#f0f2f5' }, beginAtZero: false }
+          }
+        }
+      });
+    }
+  });
+}
+
+function renderGlobalChart(evolution, cut) {
+  const ev    = (cut > 0 ? evolution.filter(e => e.ts >= cut) : evolution).slice(-200);
+  lastGlobalEv = ev;
+  const labels    = ev.map((_, i) => '#' + (i + 1));
+  const durations = ev.map(e => e.duration);
+  const targets   = ev.map(e => e.ct_post);
+  const colors    = durations.map((d, i) => d > targets[i] ? 'rgba(198,40,40,.7)' : 'rgba(46,125,50,.7)');
+
+  const canvas = document.getElementById('chart-global');
+  if (globalChart) {
+    globalChart.data.labels = labels;
+    globalChart.data.datasets[0].data = durations;
+    globalChart.data.datasets[0].backgroundColor = colors;
+    globalChart.data.datasets[1].data = targets;
+    globalChart.update('none');
+    return;
+  }
+  if (!ev.length) return;
+
+  globalChart = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'CT réel (s)', data: durations, backgroundColor: colors, borderRadius: 3, barPercentage: 0.7 },
+        { label: 'CT cible (s)', data: targets, type: 'line', borderColor: '#e65100',
+          borderWidth: 1.5, borderDash: [5, 4], pointRadius: 0, fill: false, tension: 0, order: 0 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 14 } },
+        tooltip: {
+          callbacks: {
+            title: (items) => {
+              const e = ev[items[0].dataIndex];
+              return `Cycle ${items[0].label} · Poste ${e.postId} · ${e.reference || '—'}`;
+            },
+            label: (item) => {
+              const e = ev[item.dataIndex];
+              if (item.datasetIndex === 0) {
+                const diff = round1(e.duration - e.ct_post);
+                return ` CT réel : ${e.duration}s  ${diff > 0 ? '▲ +' + diff + 's' : '✓'}`;
+              }
+              return ` CT cible : ${e.ct_post}s`;
+            },
+            afterLabel: (item) => item.datasetIndex === 0
+              ? ` ${new Date(ev[item.dataIndex].ts).toLocaleTimeString('fr-FR')}` : ''
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { font: { size: 9 }, maxTicksLimit: 20, color: '#9ca3af' }, grid: { display: false } },
+        y: { ticks: { font: { size: 10 }, color: '#9ca3af' }, grid: { color: '#f0f2f5' }, beginAtZero: false }
+      }
+    }
+  });
+
+  document.getElementById('global-card').addEventListener('click', () => openGlobalDetail(lastGlobalEv));
+}
+
+const socket = io();
+socket.on('supervision:update', load);
+
+function avg(arr)      { return arr.reduce((s, v) => s + v, 0) / arr.length; }
+function round1(v)     { return Math.round(v * 10) / 10; }
+function setText(id, v){ document.getElementById(id).textContent = v; }
+
+load();
+</script>
+</body>
+</html>

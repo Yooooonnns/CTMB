@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YAZAKI — Administration</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:     #f5f5f5;
+      --card:   #ffffff;
+      --text:   #212121;
+      --dim:    #757575;
+      --border: #e0e0e0;
+      --green:  #2e7d32;
+      --red:    #c62828;
+      --blue:   #1565c0;
+      --amber:  #e65100;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ── Header ─────────────────────────────── */
+    header {
+      background: #fff;
+      border-bottom: 1px solid var(--border);
+      padding: 13px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+    .logo img { height: 48px; width: auto; display: block; }
+    .logo { font-size: 18px; font-weight: 800; color: #b71c1c; letter-spacing: .07em; }
+    .admin-label { font-size: 13px; color: var(--dim); }
+    .hspacer { flex: 1; }
+    #stats-row { font-size: 13px; color: var(--dim); display: flex; gap: 16px; }
+    #stats-row span strong { color: var(--text); }
+
+    /* ── Tabs ───────────────────────────────── */
+    .tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 2px solid var(--border);
+      background: #fff;
+      padding: 0 24px;
+      position: sticky;
+      top: 49px;
+      z-index: 19;
+    }
+    .tab-btn {
+      padding: 13px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: inherit;
+      border: none;
+      background: transparent;
+      color: var(--dim);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: color .15s;
+    }
+    .tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); }
+    .tab-btn:hover  { color: var(--text); }
+
+    /* ── Tab content ────────────────────────── */
+    .tab-pane { display: none; padding: 24px; }
+    .tab-pane.active { display: block; }
+
+    /* ── Cards ──────────────────────────────── */
+    .card {
+      background: var(--card);
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,.07);
+      padding: 20px;
+      margin-bottom: 18px;
+    }
+    .card-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--dim);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: 14px;
+    }
+
+    /* ── Tables ─────────────────────────────── */
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th {
+      background: var(--bg);
+      text-align: left;
+      padding: 9px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--dim);
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafafa; }
+
+    /* ── Status badges ──────────────────────── */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .badge-pending { background: #e3f2fd; color: #1565c0; }
+    .badge-active  { background: #e8f5e9; color: #2e7d32; }
+    .badge-done    { background: #f5f5f5; color: #9e9e9e; }
+
+    /* ── Forms ───────────────────────────────── */
+    .form-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-bottom: 12px; }
+    .form-field { display: flex; flex-direction: column; gap: 4px; }
+    .form-field label { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+    .form-field input[type="text"],
+    .form-field input[type="number"] {
+      font-size: 13px;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-family: inherit;
+      color: var(--text);
+      outline: none;
+      transition: border-color .2s;
+    }
+    .form-field input:focus { border-color: var(--blue); }
+
+    /* Mistakes tag list inside form */
+    #mistakes-input-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 260px;
+      max-width: 400px;
+      flex: 1;
+    }
+    #mistakes-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      min-height: 32px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 8px;
+      background: #fff;
+      cursor: text;
+    }
+    .tag {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: #fff3e0;
+      color: var(--amber);
+      border-radius: 12px;
+      padding: 2px 8px 2px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .tag-del {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--amber);
+      font-size: 14px;
+      line-height: 1;
+      padding: 0 1px;
+    }
+    #mistake-text {
+      font-size: 13px;
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-family: inherit;
+      color: var(--text);
+      outline: none;
+      transition: border-color .2s;
+    }
+    #mistake-text:focus { border-color: var(--blue); }
+    .hint { font-size: 11px; color: var(--dim); }
+
+    /* ── Buttons ────────────────────────────── */
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background .15s, transform .1s;
+      white-space: nowrap;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn-primary   { background: var(--blue);  color: #fff; }
+    .btn-primary:hover   { background: #0d47a1; }
+    .btn-success   { background: var(--green); color: #fff; }
+    .btn-success:hover   { background: #1b5e20; }
+    .btn-danger    { background: var(--red);   color: #fff; }
+    .btn-danger:hover    { background: #b71c1c; }
+    .btn-ghost     { background: transparent; border: 1px solid var(--border); color: var(--dim); }
+    .btn-ghost:hover     { background: var(--bg); }
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+    /* ── Queue builder layout ───────────────── */
+    .queue-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    @media (max-width: 640px) { .queue-layout { grid-template-columns: 1fr; } }
+
+    .queue-list { list-style: none; }
+    .queue-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .queue-item:last-child { border-bottom: none; }
+    .queue-item:hover { background: #fafafa; }
+    .q-pos {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--dim);
+      min-width: 22px;
+    }
+    .q-ref { flex: 1; font-weight: 600; }
+    .q-ct  { font-size: 11px; color: var(--dim); }
+    .q-actions { display: flex; gap: 4px; }
+
+    /* Harness list (for queue builder left panel) */
+    .lib-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .lib-item:last-child { border-bottom: none; }
+    .lib-item:hover { background: #fafafa; }
+    .lib-ref { flex: 1; font-weight: 600; }
+
+    /* ── CSV import ─────────────────────────── */
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 10px;
+      padding: 32px;
+      text-align: center;
+      color: var(--dim);
+      font-size: 14px;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: var(--blue);
+      background: #e3f2fd20;
+    }
+    .drop-zone input { display: none; }
+
+    #csv-preview { margin-top: 16px; overflow-x: auto; }
+    #import-actions { margin-top: 12px; display: flex; gap: 10px; align-items: center; }
+    #import-status { font-size: 13px; color: var(--dim); }
+
+    /* ── Notifications ──────────────────────── */
+    #notif {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #212121;
+      color: #fff;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: 0 4px 16px rgba(0,0,0,.3);
+      transform: translateY(80px);
+      opacity: 0;
+      transition: all .25s;
+      z-index: 99;
+    }
+    #notif.show { transform: translateY(0); opacity: 1; }
+    #notif.green { background: var(--green); }
+    #notif.red   { background: var(--red); }
+  </style>
+</head>
+<body>
+
+<header>
+  <span class="logo"><img src="/logo.jpg" alt="YAZAKI"></span>
+  <span class="admin-label">Administration</span>
+  <span class="hspacer"></span>
+  <div id="stats-row">
+    <span>File : <strong id="s-total">—</strong></span>
+    <span>Terminés : <strong id="s-done">—</strong></span>
+    <span>En cours : <strong id="s-active">—</strong></span>
+    <span>En attente : <strong id="s-pending">—</strong></span>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="openTab('tab-lib', this)">Bibliothèque</button>
+  <button class="tab-btn"        onclick="openTab('tab-queue', this)">File d'attente</button>
+  <button class="tab-btn"        onclick="openTab('tab-import', this)">Import CSV</button>
+  <button class="tab-btn"        onclick="openTab('tab-excel', this)">Import Excel</button>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     TAB 1: LIBRARY
+════════════════════════════════════════════════════════ -->
+<div class="tab-pane active" id="tab-lib">
+
+  <!-- Add form -->
+  <div class="card">
+    <div class="card-title">Ajouter / Modifier un harnais</div>
+    <div class="form-row">
+      <div class="form-field">
+        <label>Référence *</label>
+        <input type="text" id="f-ref" placeholder="ex: HR-001" style="min-width:130px">
+      </div>
+      <div class="form-field">
+        <label>CT Global (s)</label>
+        <input type="number" id="f-ctg" value="60" min="1" style="width:90px">
+      </div>
+      <div class="form-field">
+        <label>CT Poste (s)</label>
+        <input type="number" id="f-ctp" value="60" min="1" style="width:90px">
+      </div>
+      <div id="mistakes-input-wrap">
+        <label style="font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;font-weight:600;">Erreurs fréquentes</label>
+        <div id="mistakes-tags"></div>
+        <input type="text" id="mistake-text" placeholder="Saisir une erreur + Entrée">
+        <span class="hint">Appuyez sur Entrée pour ajouter chaque erreur</span>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-success" onclick="saveHarness()">Enregistrer</button>
+      <button class="btn btn-ghost" onclick="resetForm()">Réinitialiser</button>
+    </div>
+  </div>
+
+  <!-- Library table -->
+  <div class="card" style="padding:0;overflow:hidden">
+    <table>
+      <thead>
+        <tr>
+          <th>Référence</th>
+          <th>CT Global</th>
+          <th>CT Poste</th>
+          <th>Nb erreurs</th>
+          <th style="width:120px"></th>
+        </tr>
+      </thead>
+      <tbody id="lib-body">
+        <tr><td colspan="5" style="text-align:center;color:var(--dim);padding:24px">Chargement…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     TAB 2: QUEUE
+════════════════════════════════════════════════════════ -->
+<div class="tab-pane" id="tab-queue">
+
+  <!-- Line selector -->
+  <div class="card" style="padding:12px 18px;margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:12px">
+      <label style="font-size:12px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.05em">Ligne :</label>
+      <select id="queue-line-sel" onchange="loadQueueState()" style="font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-family:inherit;background:#fff">
+        <option value="">Chargement…</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="queue-layout">
+
+    <!-- Left: library to pick from -->
+    <div class="card">
+      <div class="card-title">Bibliothèque</div>
+      <ul class="queue-list" id="picker-list">
+        <li style="color:var(--dim);font-size:13px;padding:8px 0">Chargement…</li>
+      </ul>
+    </div>
+
+    <!-- Right: current queue -->
+    <div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+        <button class="btn btn-primary" onclick="saveQueue()">Envoyer la file</button>
+        <button class="btn btn-danger"  onclick="clearQueue()">Effacer en attente</button>
+      </div>
+      <div class="card">
+        <div class="card-title">File du jour</div>
+        <ul class="queue-list" id="queue-list">
+          <li style="color:var(--dim);font-size:13px;padding:8px 0">File vide</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     TAB 3: IMPORT CSV
+════════════════════════════════════════════════════════ -->
+<div class="tab-pane" id="tab-import">
+  <div class="card">
+    <div class="card-title">Importer depuis un fichier CSV</div>
+    <p style="font-size:13px;color:var(--dim);margin-bottom:16px">
+      Format attendu (exporté depuis Excel) :<br>
+      <code style="font-size:12px;background:#f5f5f5;padding:3px 6px;border-radius:4px">
+        Reference,CTGlobal,CTPost,Erreur1,Erreur2,...
+      </code>
+    </p>
+
+    <label class="drop-zone" id="drop-zone">
+      <div>📂 Cliquez ou glissez-déposez un fichier .csv</div>
+      <input type="file" id="csv-file" accept=".csv,.txt">
+    </label>
+
+    <div id="csv-preview"></div>
+
+    <div id="import-actions" style="display:none">
+      <button class="btn btn-success" onclick="doImport()">Importer</button>
+      <button class="btn btn-ghost"   onclick="cancelImport()">Annuler</button>
+      <span id="import-status"></span>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     TAB 4: IMPORT EXCEL
+════════════════════════════════════════════════════════ -->
+<div class="tab-pane" id="tab-excel">
+  <div class="card">
+    <div class="card-title">Importer depuis Classeur2.xlsx</div>
+    <p style="font-size:13px;color:var(--dim);margin-bottom:20px">
+      Importe tous les harnais du fichier Excel et les envoie automatiquement dans la file d'attente de la ligne choisie.
+    </p>
+    <div style="background:#f5f5f5;border-radius:8px;padding:14px;font-size:13px;margin-bottom:20px">
+      <strong>Fichier :</strong><br>
+      <code style="font-size:12px">commandeChaine/publish-desktop/Classeur2.xlsx</code>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:20px">
+      <label style="font-size:12px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.05em">Ligne cible :</label>
+      <select id="excel-line-sel" style="font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-family:inherit;background:#fff">
+        <option value="">Chargement…</option>
+      </select>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <button class="btn btn-success" onclick="importExcel()" id="btn-import-excel">Importer depuis Excel + Envoyer dans la file</button>
+      <span id="excel-status" style="font-size:13px;color:var(--dim)"></span>
+    </div>
+    <div id="excel-result" style="margin-top:20px"></div>
+  </div>
+</div>
+
+<!-- Notification toast -->
+<div id="notif"></div>
+
+<script>
+// ── State ─────────────────────────────────────────────────
+let libHarnesses  = [];
+let pendingQueue  = [];   // local queue being built
+let csvRows       = [];   // parsed CSV rows awaiting import
+let editingRef    = null; // currently editing reference
+let currentMistakes = [];
+
+// ── Init ──────────────────────────────────────────────────
+openTab('tab-lib', document.querySelector('.tab-btn.active'));
+Promise.all([loadLib(), loadLines()]).then(() => loadQueueState());
+loadStats();
+setInterval(loadStats, 5000);
+
+// ── Tabs ──────────────────────────────────────────────────
+function openTab(id, btn) {
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+  if (id === 'tab-queue') {
+    Promise.all([loadLib(), loadLines()]).then(() => loadQueueState());
+  }
+  if (id === 'tab-excel') {
+    loadLines();
+  }
+}
+
+// ── Stats ─────────────────────────────────────────────────
+async function loadStats() {
+  const s = await fetch('/api/stats').then(r => r.json()).catch(() => null);
+  if (!s) return;
+  document.getElementById('s-total').textContent   = s.total;
+  document.getElementById('s-done').textContent    = s.done;
+  document.getElementById('s-active').textContent  = s.active;
+  document.getElementById('s-pending').textContent = s.pending;
+}
+
+// ══════════════════════════════════════════════════════════
+//  LIBRARY
+// ══════════════════════════════════════════════════════════
+async function loadLib() {
+  libHarnesses = await fetch('/api/harnesses').then(r => r.json());
+  renderLib();
+  renderPicker();
+}
+
+function renderLib() {
+  const tbody = document.getElementById('lib-body');
+  if (!libHarnesses.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--dim);padding:24px">Aucun harnais enregistré</td></tr>';
+    return;
+  }
+  tbody.innerHTML = libHarnesses.map(h => `
+    <tr>
+      <td><strong>${esc(h.reference)}</strong></td>
+      <td>${h.ct_global}s</td>
+      <td>${h.ct_post}s</td>
+      <td>${(h.mistakes || []).length}</td>
+      <td>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-ghost btn-sm" onclick='editHarness(${JSON.stringify(h)})'>Éditer</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteHarness('${esc(h.reference)}')">Suppr.</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function editHarness(h) {
+  editingRef = h.reference;
+  document.getElementById('f-ref').value    = h.reference;
+  document.getElementById('f-ref').disabled = true;
+  document.getElementById('f-ctg').value    = h.ct_global;
+  document.getElementById('f-ctp').value    = h.ct_post;
+  currentMistakes = [...(h.mistakes || [])];
+  renderTags();
+  document.getElementById('f-ref').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function resetForm() {
+  editingRef = null;
+  document.getElementById('f-ref').value    = '';
+  document.getElementById('f-ref').disabled = false;
+  document.getElementById('f-ctg').value    = 60;
+  document.getElementById('f-ctp').value    = 60;
+  currentMistakes = [];
+  renderTags();
+}
+
+async function saveHarness() {
+  const ref = document.getElementById('f-ref').value.trim().toUpperCase();
+  const ctg = +document.getElementById('f-ctg').value;
+  const ctp = +document.getElementById('f-ctp').value;
+  if (!ref) return toast('Référence requise', 'red');
+  const res = await fetch('/api/harnesses', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reference: ref, ct_global: ctg, ct_post: ctp, mistakes: currentMistakes })
+  });
+  if (!res.ok) return toast('Erreur lors de la sauvegarde', 'red');
+  toast('Harnais enregistré', 'green');
+  resetForm();
+  loadLib();
+}
+
+async function deleteHarness(ref) {
+  if (!confirm(`Supprimer ${ref} ?`)) return;
+  await fetch(`/api/harnesses/${encodeURIComponent(ref)}`, { method: 'DELETE' });
+  toast('Supprimé', '');
+  loadLib();
+}
+
+// ── Mistake tags ──────────────────────────────────────────
+document.getElementById('mistake-text').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  const val = e.target.value.trim();
+  if (!val) return;
+  if (!currentMistakes.includes(val)) { currentMistakes.push(val); renderTags(); }
+  e.target.value = '';
+});
+
+function renderTags() {
+  const wrap = document.getElementById('mistakes-tags');
+  wrap.innerHTML = currentMistakes.map((m, i) =>
+    `<span class="tag">${esc(m)}<button class="tag-del" onclick="removeMistake(${i})" title="Supprimer">×</button></span>`
+  ).join('');
+}
+
+function removeMistake(i) {
+  currentMistakes.splice(i, 1);
+  renderTags();
+}
+
+// ══════════════════════════════════════════════════════════
+//  QUEUE
+// ══════════════════════════════════════════════════════════
+async function loadLines() {
+  try {
+    const lines = await fetch('/api/lines').then(r => r.json());
+    ['queue-line-sel', 'excel-line-sel'].forEach(selId => {
+      const sel = document.getElementById(selId);
+      if (!sel) return;
+      const cur = sel.value;
+      sel.innerHTML = lines.map(l =>
+        `<option value="${l.id}" ${String(l.id) === cur ? 'selected' : ''}>${l.name}</option>`
+      ).join('') || '<option value="">Aucune ligne</option>';
+      if (!sel.value && lines.length) sel.value = lines[0].id;
+    });
+  } catch {}
+}
+
+async function loadQueueState() {
+  const lineId = document.getElementById('queue-line-sel')?.value || '1';
+  try {
+    const items  = await fetch(`/api/lines/${lineId}/queue`).then(r => r.json());
+    pendingQueue = items.filter(i => i.status !== 'done');
+  } catch { pendingQueue = []; }
+  renderQueue();
+  renderPicker();
+}
+
+function renderPicker() {
+  const ul = document.getElementById('picker-list');
+  if (!libHarnesses.length) {
+    ul.innerHTML = '<li style="color:var(--dim);font-size:13px;padding:8px 0">Bibliothèque vide</li>';
+    return;
+  }
+  ul.innerHTML = libHarnesses.map(h => `
+    <li class="lib-item">
+      <span class="lib-ref">${esc(h.reference)}</span>
+      <span style="font-size:11px;color:var(--dim)">${h.ct_post}s</span>
+      <button class="btn btn-ghost btn-sm" data-ref="${esc(h.reference)}" onclick="addToQueue(this.dataset.ref)">+</button>
+    </li>
+  `).join('');
+}
+
+function addToQueue(ref) {
+  const maxPos = pendingQueue.reduce((m, i) => Math.max(m, i.position), -1);
+  pendingQueue.push({ position: maxPos + 1, reference: ref, status: 'pending' });
+  renderQueue();
+  toast(`${ref} ajouté`, '');
+}
+
+function renderQueue() {
+  const ul = document.getElementById('queue-list');
+  const pending = pendingQueue.filter(i => i.status === 'pending');
+  const active  = pendingQueue.filter(i => i.status === 'active');
+
+  let html = '';
+  if (active.length) {
+    html += active.map(i => `
+      <li class="queue-item">
+        <span class="q-pos">★</span>
+        <span class="q-ref">${esc(i.reference)}</span>
+        <span><span class="badge badge-active">En cours</span></span>
+      </li>
+    `).join('');
+  }
+  if (pending.length) {
+    html += pending.map((i, idx) => `
+      <li class="queue-item" data-pos="${i.position}">
+        <span class="q-pos">${idx + 1}</span>
+        <span class="q-ref">${esc(i.reference)}</span>
+        <span class="q-actions">
+          <button class="btn btn-ghost btn-sm" onclick="moveUp(${idx})" ${idx === 0 ? 'disabled' : ''}>↑</button>
+          <button class="btn btn-ghost btn-sm" onclick="moveDown(${idx})" ${idx === pending.length - 1 ? 'disabled' : ''}>↓</button>
+          <button class="btn btn-danger btn-sm" onclick="removeFromQueue(${idx})">✕</button>
+        </span>
+      </li>
+    `).join('');
+  }
+  if (!html) {
+    html = '<li style="color:var(--dim);font-size:13px;padding:8px 0">File vide</li>';
+  }
+  ul.innerHTML = html;
+}
+
+function moveUp(idx) {
+  const pending = pendingQueue.filter(i => i.status === 'pending');
+  if (idx === 0) return;
+  const other = pendingQueue.indexOf(pending[idx - 1]);
+  const cur   = pendingQueue.indexOf(pending[idx]);
+  [pendingQueue[other], pendingQueue[cur]] = [pendingQueue[cur], pendingQueue[other]];
+  renumberPending();
+  renderQueue();
+}
+
+function moveDown(idx) {
+  const pending = pendingQueue.filter(i => i.status === 'pending');
+  if (idx === pending.length - 1) return;
+  const cur   = pendingQueue.indexOf(pending[idx]);
+  const other = pendingQueue.indexOf(pending[idx + 1]);
+  [pendingQueue[cur], pendingQueue[other]] = [pendingQueue[other], pendingQueue[cur]];
+  renumberPending();
+  renderQueue();
+}
+
+function removeFromQueue(idx) {
+  const pending = pendingQueue.filter(i => i.status === 'pending');
+  const cur = pendingQueue.indexOf(pending[idx]);
+  pendingQueue.splice(cur, 1);
+  renumberPending();
+  renderQueue();
+}
+
+function renumberPending() {
+  let pos = 0;
+  for (const item of pendingQueue) {
+    if (item.status === 'active') continue;
+    item.position = pos++;
+  }
+}
+
+async function saveQueue() {
+  const items = pendingQueue.filter(i => i.status === 'pending');
+  const lineId = document.getElementById('queue-line-sel')?.value || '1';
+  const res = await fetch(`/api/lines/${lineId}/queue`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ items })
+  });
+  if (!res.ok) return toast('Erreur', 'red');
+  toast('File envoyée', 'green');
+  loadQueueState();
+}
+
+async function clearQueue() {
+  if (!confirm('Effacer tous les éléments en attente ?')) return;
+  const lineId = document.getElementById('queue-line-sel')?.value || '1';
+  await fetch(`/api/lines/${lineId}/queue`, { method: 'DELETE' });
+  toast('File effacée', '');
+  loadQueueState();
+}
+
+// ══════════════════════════════════════════════════════════
+//  CSV IMPORT
+// ══════════════════════════════════════════════════════════
+const dropZone = document.getElementById('drop-zone');
+const csvFile  = document.getElementById('csv-file');
+
+dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', ()  => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) readCSV(file);
+});
+csvFile.addEventListener('change', e => { if (e.target.files[0]) readCSV(e.target.files[0]); });
+
+function readCSV(file) {
+  const reader = new FileReader();
+  reader.onload = e => parseCSV(e.target.result);
+  reader.readAsText(file, 'UTF-8');
+}
+
+function parseCSV(text) {
+  csvRows = [];
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+
+  // Detect header: first line contains non-numeric values
+  let startLine = 0;
+  const firstCols = lines[0].split(',');
+  if (isNaN(+firstCols[1])) startLine = 1;  // has header
+
+  for (let i = startLine; i < lines.length; i++) {
+    const cols = lines[i].split(',').map(c => c.trim());
+    if (!cols[0]) continue;
+    csvRows.push({
+      reference: cols[0].toUpperCase(),
+      ct_global: +cols[1] || 60,
+      ct_post:   +cols[2] || 60,
+      mistakes:  cols.slice(3).filter(Boolean)
+    });
+  }
+
+  if (!csvRows.length) {
+    document.getElementById('csv-preview').innerHTML =
+      '<p style="color:var(--red);font-size:13px;margin-top:12px">Aucune ligne valide trouvée.</p>';
+    document.getElementById('import-actions').style.display = 'none';
+    return;
+  }
+
+  renderCSVPreview();
+  document.getElementById('import-actions').style.display = 'flex';
+  document.getElementById('import-status').textContent = `${csvRows.length} harnais à importer`;
+}
+
+function renderCSVPreview() {
+  const rows = csvRows.slice(0, 20);
+  document.getElementById('csv-preview').innerHTML = `
+    <div style="overflow-x:auto;margin-top:14px">
+      <table>
+        <thead>
+          <tr>
+            <th>Référence</th>
+            <th>CT Global</th>
+            <th>CT Poste</th>
+            <th>Erreurs</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(r => `
+            <tr>
+              <td><strong>${esc(r.reference)}</strong></td>
+              <td>${r.ct_global}s</td>
+              <td>${r.ct_post}s</td>
+              <td style="font-size:12px;color:var(--dim)">${r.mistakes.map(m => esc(m)).join(' · ') || '—'}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+      ${csvRows.length > 20 ? `<p style="font-size:12px;color:var(--dim);padding:8px">… et ${csvRows.length - 20} autres</p>` : ''}
+    </div>
+  `;
+}
+
+async function doImport() {
+  const btn = document.querySelector('#import-actions .btn-success');
+  btn.disabled = true;
+  const status = document.getElementById('import-status');
+  let ok = 0, fail = 0;
+
+  for (const row of csvRows) {
+    try {
+      const res = await fetch('/api/harnesses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(row)
+      });
+      if (res.ok) ok++; else fail++;
+    } catch { fail++; }
+    status.textContent = `${ok + fail} / ${csvRows.length}…`;
+  }
+
+  status.textContent = `Terminé : ${ok} importés, ${fail} erreurs`;
+  btn.disabled = false;
+  toast(`${ok} harnais importés`, ok > 0 ? 'green' : 'red');
+  csvRows = [];
+  loadLib();
+}
+
+function cancelImport() {
+  csvRows = [];
+  document.getElementById('csv-preview').innerHTML = '';
+  document.getElementById('import-actions').style.display = 'none';
+  document.getElementById('csv-file').value = '';
+}
+
+// ── Helpers ───────────────────────────────────────────────
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+let toastTimer;
+function toast(msg, type) {
+  const el = document.getElementById('notif');
+  el.textContent = msg;
+  el.className   = type ? `show ${type}` : 'show';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.className = '', 2500);
+}
+
+// ── Excel import ───────────────────────────────────────────
+async function importExcel() {
+  const btn    = document.getElementById('btn-import-excel');
+  const status = document.getElementById('excel-status');
+  const result = document.getElementById('excel-result');
+  btn.disabled = true;
+  btn.textContent = 'Importation…';
+  status.textContent = '';
+  result.innerHTML = '';
+  try {
+    const r = await fetch('/api/import-excel', { method: 'POST' });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Erreur serveur');
+
+    // Auto-send all imported harnesses to the selected line's queue
+    const lineId = document.getElementById('excel-line-sel')?.value || '1';
+    const harnesses = await fetch('/api/harnesses').then(r2 => r2.json());
+    let queueMsg = '';
+    if (harnesses.length) {
+      const qRes = await fetch(`/api/lines/${lineId}/queue`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: harnesses.map((h, i) => ({ position: i, reference: h.reference })) })
+      });
+      if (qRes.ok) queueMsg = `<br>${harnesses.length} harnais envoyés dans la file d'attente.`;
+    }
+
+    const html = '<div style="background:#e8f5e9;border-radius:8px;padding:14px;font-size:14px">'
+      + '<strong style="color:#2e7d32">Import réussi !</strong><br>'
+      + 'Total harnais : <strong>' + d.total + '</strong><br>'
+      + 'Créés : <strong>' + d.created + '</strong> &nbsp; Mis à jour : <strong>' + d.updated + '</strong>'
+      + queueMsg
+      + '</div>';
+    result.innerHTML = html;
+    toast(d.total + ' harnais importés et envoyés dans la file', 'green');
+    loadLib();
+    loadQueueState();
+  } catch (err) {
+    result.innerHTML = '<div style="background:#ffebee;border-radius:8px;padding:14px;font-size:14px;color:#c62828"><strong>Erreur :</strong> ' + err.message + '</div>';
+    toast('Erreur import Excel', 'red');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Importer depuis Excel';
+  }
+}
+</script>
+</body>
+</html>

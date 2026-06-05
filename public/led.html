@@ -1,0 +1,349 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YAZAKI — CTMB</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  background: #080808;
+  user-select: none;
+  font-family: 'Consolas', 'Courier New', monospace;
+}
+
+/* ── Main layout ── */
+#wrap {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #000;
+}
+
+/* Thin header strip — post name left, delay right */
+#header {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1px 6px;
+  background: #000;
+}
+
+#post-name {
+  font-size: clamp(10px, 1.8vh, 16px);
+  font-weight: 600;
+  color: rgba(255,255,255,0.5);
+  letter-spacing: .08em;
+  white-space: nowrap;
+}
+#post-name.active { color: #fff; }
+
+#delay-val {
+  font-size: clamp(10px, 1.8vh, 16px);
+  font-weight: 700;
+  color: #ff6400;
+  font-variant-numeric: tabular-nums;
+  display: none;
+}
+
+/* LED bar — fills remaining height, relative for overlays */
+#led-band {
+  flex: 1;
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(24, 1fr);
+  gap: 1px;
+  padding: 2px;
+  background: #000;
+  overflow: hidden;
+}
+
+.seg {
+  border-radius: 2px;
+  background: #1a1a1a;
+  transition: background .15s;
+}
+
+/* % text — absolute, centred on the bar */
+#countdown {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: clamp(12px, 2.8vh, 22px);
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  text-shadow: 0 1px 4px #000, 0 0 8px #000;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 5;
+  line-height: 1;
+  transition: color .3s;
+}
+#countdown.warn { color: #ffc107; }
+#countdown.red  { color: #f44336; }
+#countdown.late { color: #ff6400; }
+
+@keyframes pulse-scale {
+  0%,100% { transform: translate(-50%, -50%) scale(1); }
+  50%      { transform: translate(-50%, -50%) scale(1.08); }
+}
+#countdown.pulse { animation: pulse-scale .9s ease-in-out infinite; }
+
+/* Late marquee overlay — covers the bar, scrolls horizontally */
+#late-msg {
+  display: none;
+  position: absolute;
+  left: 0; top: 0;
+  width: 100%; height: 100%;
+  align-items: center;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 10;
+}
+
+#late-text {
+  white-space: nowrap;
+  font-size: clamp(12px, 2.8vh, 22px);
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 1px 4px #000;
+  font-family: 'Segoe UI', 'Consolas', Arial, sans-serif;
+  letter-spacing: .06em;
+  animation: marquee 6s linear infinite;
+  will-change: transform;
+}
+
+@keyframes marquee {
+  from { transform: translateX(100vw); }
+  to   { transform: translateX(-100%); }
+}
+
+/* Late — flash bar background */
+@keyframes flash-late {
+  0%,100% { background-color: #000; }
+  50%      { background-color: #2a0e00; }
+}
+#led-band.late { animation: flash-late .6s ease-in-out infinite; }
+
+/* Tiny connection dot */
+#conn-dot {
+  position: absolute;
+  bottom: 2px; right: 2px;
+  width: 3px; height: 3px;
+  border-radius: 50%;
+  background: #222;
+}
+#conn-dot.ok   { background: #43a047; }
+#conn-dot.fail { background: #e53935; }
+</style>
+</head>
+<body>
+
+<div id="wrap">
+  <div id="header">
+    <div id="post-name">POSTE —</div>
+    <div id="delay-val"></div>
+  </div>
+  <div id="led-band">
+    <div id="countdown">—</div>
+    <div id="late-msg"><div id="late-text">  YOU ARE LATE     أنت متأخر     YOU ARE LATE     أنت متأخر   </div></div>
+  </div>
+  <div id="conn-dot"></div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+'use strict';
+const TOTAL_SEGS    = 24;
+const ACTIVE_SEGS   = 24;
+const YELLOW_BAND   = Math.round(ACTIVE_SEGS * 0.25); // 6  → yellow starts at 75%
+const GREEN_BAND    = Math.round(ACTIVE_SEGS * 0.25); // 6  → green covers 0–75%
+const RED_BAND      = Math.ceil(ACTIVE_SEGS * 0.05);  // 2  → red starts at ~95%
+
+const lineMatch = location.pathname.match(/\/line\/(\d+)\//);
+const lineId    = lineMatch ? lineMatch[1] : '1';
+const params    = new URLSearchParams(location.search);
+const postId    = +(params.get('post') ?? '1');
+
+document.title = 'CTMB — Poste ' + postId;
+document.getElementById('post-name').textContent = 'POSTE ' + postId;
+
+// Build LED segments
+const band = document.getElementById('led-band');
+const segs  = [];
+for (let i = 0; i < TOTAL_SEGS; i++) {
+  const s = document.createElement('div');
+  s.className = 'seg';
+  band.appendChild(s);
+  segs.push(s);
+}
+
+let ctPost = 0, startedAt = 0, running = false, rafId = null;
+
+function showLateMsg(show) {
+  document.getElementById('late-msg').style.display = show ? 'flex' : 'none';
+}
+
+// ── Audio ─────────────────────────────────────────────────────────────────
+let audioCtx    = null;
+let soundTimer  = null;
+let currentZone = 'idle';
+
+function ensureAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function beep(freq, dur, vol) {
+  try {
+    const ctx = ensureAudio();
+    const osc = ctx.createOscillator();
+    const g   = ctx.createGain();
+    osc.connect(g);
+    g.connect(ctx.destination);
+    osc.type = 'square';
+    osc.frequency.value = freq;
+    g.gain.setValueAtTime(vol || 0.25, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+    osc.start();
+    osc.stop(ctx.currentTime + dur + 0.01);
+  } catch(e) {}
+}
+
+function soundYellow() { beep(880, 0.18, 0.22); }
+function soundRed()    { beep(1200, 0.12, 0.28); setTimeout(() => beep(1200, 0.12, 0.28), 180); }
+function soundLate()   {
+  beep(660, 0.18, 0.32);
+  setTimeout(() => beep(880, 0.18, 0.32), 230);
+  setTimeout(() => beep(660, 0.18, 0.32), 460);
+}
+
+function setZone(zone) {
+  if (zone === currentZone) return;
+  currentZone = zone;
+  if (soundTimer) { clearInterval(soundTimer); soundTimer = null; }
+  if      (zone === 'yellow') { soundYellow(); soundTimer = setInterval(soundYellow, 3000); }
+  else if (zone === 'red')    { soundRed();    soundTimer = setInterval(soundRed,    2000); }
+  else if (zone === 'late')   { soundLate();   soundTimer = setInterval(soundLate,   1500); }
+}
+
+function stopSound() {
+  if (soundTimer) { clearInterval(soundTimer); soundTimer = null; }
+  currentZone = 'idle';
+}
+
+// ── Socket ────────────────────────────────────────────────────────────────
+const socket = io();
+socket.emit('join:post', { lineId, postId });
+socket.on('connect',    () => dot('ok'));
+socket.on('disconnect', () => dot('fail'));
+
+socket.on('harness:new', data => {
+  ctPost    = data.ctGlobal ?? data.ctPost ?? 0; // global CT — matches operator bar
+  startedAt = data.startedAt ?? Date.now(); // use server start time so CTMB stays in sync with operator
+  running   = true;
+  document.getElementById('post-name').classList.add('active');
+  document.getElementById('led-band').classList.remove('late');
+  document.getElementById('delay-val').style.display = 'none';
+  document.getElementById('countdown').style.display = '';
+  showLateMsg(false);
+  stopSound();
+  if (rafId) cancelAnimationFrame(rafId);
+  rafLoop();
+});
+
+socket.on('harness:done', () => {
+  running = false; ctPost = 0; startedAt = 0;
+  stopSound();
+  if (rafId) cancelAnimationFrame(rafId);
+  document.getElementById('post-name').classList.remove('active');
+  document.getElementById('countdown').textContent   = '—';
+  document.getElementById('countdown').className     = '';
+  document.getElementById('countdown').style.display = '';
+  document.getElementById('delay-val').style.display = 'none';
+  showLateMsg(false);
+  document.getElementById('led-band').classList.remove('late');
+  segs.forEach(s => s.style.background = '#1a1a1a');
+});
+
+function dot(cls) { document.getElementById('conn-dot').className = cls; }
+
+function rafLoop() {
+  rafId = requestAnimationFrame(rafLoop);
+  if (!running || !ctPost) return;
+
+  const elapsed   = (Date.now() - startedAt) / 1000;
+  const ratio     = elapsed / ctPost;
+  const cd        = document.getElementById('countdown');
+  const band      = document.getElementById('led-band');
+  const delayEl   = document.getElementById('delay-val');
+
+  if (ratio > 1) {
+    cd.textContent          = '100%';
+    cd.className            = 'late';
+    cd.style.display        = 'none'; // marquee takes over
+    delayEl.textContent     = '+' + Math.floor(elapsed - ctPost) + 's';
+    delayEl.style.display   = 'block';
+    showLateMsg(true);
+    band.classList.add('late');
+    paintBand(ratio, true);
+    setZone('late');
+  } else {
+    const lit    = Math.min(ACTIVE_SEGS, Math.round(Math.max(0, ratio) * ACTIVE_SEGS));
+    const frontI = TOTAL_SEGS - lit;
+    delayEl.style.display   = 'none';
+    showLateMsg(false);
+    cd.style.display        = '';
+    band.classList.remove('late');
+    paintBand(ratio, false);
+    cd.textContent = Math.round(ratio * 100) + '%';
+    if      (ratio < 0.75) { cd.className = '';          setZone('green'); }
+    else if (ratio < 0.95) { cd.className = 'warn';      setZone('yellow'); }
+    else                   { cd.className = 'red pulse'; setZone('red'); }
+  }
+}
+
+function paintBand(ratio, late) {
+  const lit = late
+    ? ACTIVE_SEGS
+    : Math.min(ACTIVE_SEGS, Math.round(Math.max(0, ratio) * ACTIVE_SEGS));
+
+  for (let i = 0; i < TOTAL_SEGS; i++) {
+    const isLit = i >= TOTAL_SEGS - lit;
+    if (!isLit)            segs[i].style.background = '#1a1a1a';
+    else if (late)         segs[i].style.background = '#ff6400';
+    else if (i >= 6)       segs[i].style.background = '#4caf50'; // green  (segs 6–23, first 75%)
+    else if (i >= 2)       segs[i].style.background = '#ffc107'; // yellow (segs 2–5,  75–95%)
+    else                   segs[i].style.background = '#f44336'; // red    (segs 0–1,  95–100%)
+  }
+}
+
+// Restore on reload (e.g. page refresh mid-harness or server restart)
+(async () => {
+  try {
+    const state = await fetch('/api/lines/' + lineId + '/posts/' + postId).then(r => r.json());
+    if (state.status !== 'active' || !state.started_at || !state.harness?.ct_post) return;
+    const elapsed = (Date.now() - state.started_at) / 1000;
+    // Skip stale sessions — if we're more than 3× the cycle time past start,
+    // the harness was never properly completed and should not auto-resume
+    if (elapsed > state.harness.ct_post * 3) return;
+    ctPost    = state.harness.ct_global ?? state.harness.ct_post; // global CT — matches operator bar
+    startedAt = state.started_at;   // use real start time, not Date.now()
+    running   = true;
+    document.getElementById('post-name').classList.add('active');
+    rafLoop();
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YAZAKI — Supervision</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f0f2f5;--card:#ffffff;--border:#e2e5ea;
+  --text:#1a1d23;--dim:#6b7280;
+  --blue:#1565c0;--green:#2e7d32;--red:#c62828;--amber:#e65100;
+  --header:#0d1b2e;
+}
+body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* Header */
+header{
+  background:var(--header);color:#fff;
+  display:flex;align-items:center;gap:16px;padding:0 28px;height:56px;
+  position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.25);
+}
+.logo{font-weight:800;font-size:18px;letter-spacing:.08em;color:#f59e0b}
+.page-title{font-size:15px;font-weight:600;opacity:.85}
+.hsp{flex:1}
+header a{color:#a0aec0;text-decoration:none;font-size:13px}
+header a:hover{color:#fff}
+
+/* Toolbar */
+.toolbar{display:flex;align-items:center;gap:12px;padding:18px 28px 4px;flex-wrap:wrap}
+.toolbar h2{font-size:16px;font-weight:700;flex:1}
+
+/* Buttons */
+.btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:8px 16px;border:none;border-radius:6px;
+  font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:filter .15s;
+}
+.btn:hover{filter:brightness(.92)}
+.btn-primary{background:var(--blue);color:#fff}
+.btn-ghost{background:#fff;color:var(--text);border:1px solid var(--border)}
+.btn-danger{background:var(--red);color:#fff}
+.btn-sm{padding:5px 10px;font-size:12px}
+
+/* Grid */
+.lines-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(460px,1fr));
+  gap:20px;padding:18px 28px 40px;
+}
+
+/* Card */
+.line-card{background:var(--card);border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.07);overflow:hidden}
+.line-card-header{
+  display:flex;align-items:center;gap:10px;padding:14px 18px;
+  border-bottom:1px solid var(--border);background:#fafbfc;
+}
+.line-name{flex:1;font-weight:700;font-size:15px}
+.line-badge{background:#e8eaf6;color:#3949ab;border-radius:10px;padding:2px 10px;font-size:11px;font-weight:700}
+.line-actions{display:flex;gap:6px}
+.btn-voir{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:5px 11px;border:none;border-radius:6px;
+  font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;
+  background:#0d1b2e;color:#a0c4ff;text-decoration:none;transition:background .15s;
+}
+.btn-voir:hover{background:#1565c0;color:#fff}
+
+/* CT Info Bar */
+.ct-info-bar{
+  display:flex;align-items:center;
+  height:36px;background:#0d1b2e;color:#a0aec0;font-size:12px;
+  border-bottom:1px solid #1e2f44;overflow:hidden;
+}
+.ct-info-bar.idle{background:#1a2030}
+.ct-chip{
+  display:flex;align-items:center;gap:5px;
+  padding:0 14px;height:100%;border-right:1px solid #1e3050;white-space:nowrap;
+}
+.ct-chip:last-child{border-right:none}
+.ct-chip .lbl{color:#4a6080;font-size:10px;text-transform:uppercase;letter-spacing:.05em}
+.ct-chip .val{color:#e2e8f0;font-weight:700;font-size:13px}
+.ct-chip .ref-val{color:#f59e0b;font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis}
+.ct-chip .idle-val{color:#4a5568}
+.ct-speed-dot{width:7px;height:7px;border-radius:50%;background:#374151;flex-shrink:0}
+.ct-speed-dot.active{background:#4caf50;box-shadow:0 0 5px #4caf5080;animation:dpulse 1.2s ease-in-out infinite}
+.ct-speed-dot.late{background:#ff6400;animation:dpulse .55s ease-in-out infinite}
+@keyframes dpulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* Racetrack */
+.racetrack-wrap{padding:12px 18px;background:#f8f9fa;border-bottom:1px solid var(--border)}
+canvas.racetrack{width:100%;height:150px;display:block}
+
+/* Posts grid */
+.posts-grid{display:flex;flex-wrap:wrap;gap:8px;padding:14px 18px;border-bottom:1px solid var(--border)}
+.post-tile{
+  display:flex;flex-direction:column;align-items:stretch;
+  background:#f5f5f5;border-radius:8px;padding:8px 10px;
+  min-width:82px;cursor:pointer;text-decoration:none;
+  transition:background .15s,box-shadow .15s;border:1px solid transparent;
+}
+.post-tile:hover{box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.post-tile.status-idle  {background:#f5f5f5}
+.post-tile.status-active{background:#f1fdf2;border-color:#a5d6a7}
+.post-tile.status-late  {background:#fff8f0;border-color:#ffcc80}
+.post-tile.status-done  {background:#e8f0fe;border-color:#90caf9}
+.post-head{display:flex;align-items:center;gap:5px;margin-bottom:4px}
+.post-num{font-size:10px;font-weight:700;color:var(--dim)}
+.post-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.dot-idle  {background:#bdbdbd}
+.dot-active{background:#4caf50}
+.dot-late  {background:#ff6400}
+.dot-done  {background:#1565c0}
+.post-ref{font-size:10px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70px}
+.post-mini-bar{height:4px;background:#e0e0e0;border-radius:2px;overflow:hidden;margin-bottom:3px}
+.post-mini-fill{height:100%;border-radius:2px;width:0%;transition:width .4s linear,background .3s}
+.post-time{font-size:10px;color:var(--dim);font-variant-numeric:tabular-nums;text-align:center}
+.post-late-tag{font-size:9px;font-weight:700;color:#e65100;background:#fff3e0;border-radius:4px;padding:1px 4px;margin-top:3px;text-align:center}
+.post-late-tag.critical{color:#c62828;background:#ffebee}
+
+/* Queue bar */
+.queue-bar-wrap{padding:10px 18px 8px;border-bottom:1px solid var(--border)}
+.queue-bar-track{height:7px;background:#e5e7eb;border-radius:4px;overflow:hidden;margin-bottom:6px}
+.queue-bar-done{height:100%;background:linear-gradient(90deg,#2e7d32,#43a047);border-radius:4px;transition:width .5s}
+.queue-counts{display:flex;gap:14px;font-size:11px;color:var(--dim);flex-wrap:wrap}
+.queue-counts strong{color:var(--text)}
+.qc-done   strong{color:#2e7d32}
+.qc-active strong{color:#1565c0}
+
+/* Late analysis */
+.late-analysis{padding:10px 18px;background:#fffbf5;border-top:1px solid #ffe0b2}
+.late-title{font-size:10px;font-weight:700;color:#e65100;text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px}
+.late-posts-row{display:flex;flex-wrap:wrap;gap:5px}
+.late-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:12px;background:#fff3e0;color:#e65100;border:1px solid #ffcc80}
+.late-badge.critical{background:#ffebee;color:#c62828;border-color:#ef9a9a}
+
+
+
+/* Empty state */
+.empty-state{grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--dim)}
+.empty-state h3{font-size:17px;margin-bottom:8px;color:var(--text)}
+
+/* Modal */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.45);
+  display:flex;align-items:center;justify-content:center;
+  z-index:200;opacity:0;pointer-events:none;transition:opacity .2s;
+}
+.modal-overlay.open{opacity:1;pointer-events:auto}
+.modal{
+  background:var(--card);border-radius:12px;width:380px;max-width:95vw;padding:28px;
+  box-shadow:0 8px 40px rgba(0,0,0,.2);transform:translateY(-20px);transition:transform .2s;
+}
+.modal-overlay.open .modal{transform:translateY(0)}
+.modal h3{font-size:16px;font-weight:700;margin-bottom:20px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:11px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
+.field input{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;font-family:inherit;color:var(--text);outline:none;transition:border-color .2s}
+.field input:focus{border-color:var(--blue)}
+.modal-actions{display:flex;gap:10px;margin-top:20px;justify-content:flex-end}
+
+/* Notif */
+#notif{
+  position:fixed;bottom:20px;right:20px;background:#212121;color:#fff;
+  padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;
+  box-shadow:0 4px 16px rgba(0,0,0,.3);transform:translateY(80px);opacity:0;
+  transition:all .25s;z-index:300;
+}
+#notif.show{transform:translateY(0);opacity:1}
+#notif.green{background:#2e7d32}
+#notif.red{background:#c62828}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="logo"><img src="/logo.jpg" alt="YAZAKI" style="height:48px;width:auto;display:block"></span>
+  <span class="page-title">Supervision</span>
+  <span class="hsp"></span>
+</header>
+
+<div class="toolbar">
+  <h2>Lignes de production</h2>
+  <button class="btn btn-primary" onclick="openModal()">+ Nouvelle ligne</button>
+</div>
+
+<div class="lines-grid" id="lines-grid">
+  <div class="empty-state"><h3>Chargement…</h3></div>
+</div>
+
+<div class="modal-overlay" id="modal-overlay" onclick="closeModalOutside(event)">
+  <div class="modal">
+    <h3 id="modal-title">Nouvelle ligne</h3>
+    <div class="field">
+      <label>Nom de la ligne</label>
+      <input type="text" id="m-name" placeholder="ex: Ligne 1">
+    </div>
+    <div class="field">
+      <label>Nombre de postes</label>
+      <input type="number" id="m-posts" value="4" min="1" max="30">
+    </div>
+    <input type="hidden" id="m-id">
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="saveLine()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<div id="notif"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+'use strict';
+
+/* ── Helpers ─────────────────────────────────────────────── */
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function toast(msg, cls) {
+  var el = document.getElementById('notif');
+  el.textContent = msg; el.className = 'show ' + (cls || '');
+  clearTimeout(el._t);
+  el._t = setTimeout(function(){ el.className = ''; }, 2600);
+}
+function fmtTime(secs) {
+  secs = Math.floor(Math.abs(secs));
+  return Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0');
+}
+
+/* ── Socket ──────────────────────────────────────────────── */
+var socket = io();
+socket.emit('join:supervision');
+socket.on('supervision:update', load);
+socket.on('lines:updated', load);
+
+/* ── State ───────────────────────────────────────────────── */
+var linesData   = [];
+var canvasAnims = {};
+var canvasEls   = {};
+
+/* ── Data load ───────────────────────────────────────────── */
+async function load() {
+  try { linesData = await fetch('/api/supervision').then(function(r){ return r.json(); }); }
+  catch(e) { linesData = []; }
+  render();
+}
+
+function render() {
+  var grid = document.getElementById('lines-grid');
+  if (!linesData.length) {
+    grid.innerHTML = '<div class="empty-state"><h3>Aucune ligne configurée</h3><p>Cliquez sur « Nouvelle ligne » pour créer la première ligne.</p></div>';
+    return;
+  }
+  grid.innerHTML = linesData.map(function(line){ return buildCard(line); }).join('');
+  linesData.forEach(function(line) {
+    var canvas = document.getElementById('canvas-' + line.id);
+    if (canvas) { canvasEls[line.id] = canvas; startAnim(line); }
+  });
+}
+
+/* ── Build card HTML ─────────────────────────────────────── */
+function buildCard(line) {
+  var now = Date.now();
+  var act = line.activeCt; // { ct_global, ct_post, started_at, reference } or null
+
+  /* CT info bar */
+  var ctBar;
+  if (act && act.ct_global) {
+    var elapsed = act.started_at ? (now - act.started_at) / 1000 : 0;
+    var lineIsLate = elapsed > act.ct_global;
+    var dotCls = lineIsLate ? 'ct-speed-dot late' : 'ct-speed-dot active';
+    var statusLbl = lineIsLate ? 'RETARD LIGNE' : 'EN COURS';
+    ctBar = '<div class="ct-info-bar">'
+      + '<div class="ct-chip"><span class="lbl">Réf</span>'
+      +   '<span class="val ref-val">' + esc(act.reference || '—') + '</span></div>'
+      + '<div class="ct-chip"><span class="lbl">CT Global</span>'
+      +   '<span class="val">' + (act.ct_global || '—') + 's</span></div>'
+      + '<div class="ct-chip"><span class="lbl">CT Poste</span>'
+      +   '<span class="val">' + (act.ct_post || '—') + 's</span></div>'
+      + '<div class="ct-chip" style="margin-left:auto">'
+      +   '<span class="' + dotCls + '"></span>'
+      +   '<span class="lbl" style="margin-left:4px">' + statusLbl + '</span></div>'
+      + '</div>';
+  } else {
+    ctBar = '<div class="ct-info-bar idle">'
+      + '<div class="ct-chip"><span class="lbl">Statut</span><span class="val idle-val">En attente</span></div>'
+      + '</div>';
+  }
+
+  /* Post tiles */
+  var postTiles = line.posts.map(function(p) {
+    var statusClass = 'status-idle', dotClass = 'dot-idle';
+    if (p.status === 'active') {
+      var el0 = p.started_at ? (now - p.started_at) / 1000 : 0;
+      var late0 = p.ct_post !== null && el0 > p.ct_post;
+      statusClass = late0 ? 'status-late' : 'status-active';
+      dotClass    = late0 ? 'dot-late'    : 'dot-active';
+    } else if (p.status === 'done') {
+      statusClass = 'status-done'; dotClass = 'dot-done';
+    }
+    var refText = p.reference ? esc(p.reference) : '—';
+
+    /* Late badge */
+    var lateBadge = '';
+    var ls = p.lateStats;
+    if (ls && ls.total >= 3) {
+      var latePct = Math.round((ls.late / ls.total) * 100);
+      if (latePct >= 30) {
+        var bCls = latePct >= 60 ? 'post-late-tag critical' : 'post-late-tag';
+        lateBadge = '<div class="' + bCls + '">' + ls.late + '/' + ls.total + ' tard</div>';
+      }
+    }
+
+    /* Initial mini-bar state (updated live in rAF) */
+    var fillW = '0%', fillBg = '#4caf50', timeText = '—';
+    if (p.status === 'active' && p.started_at && p.ct_post) {
+      var eld = (now - p.started_at) / 1000;
+      var rat = Math.min(1, eld / p.ct_post);
+      fillW   = Math.round(rat * 100) + '%';
+      fillBg  = rat >= 1 ? '#ff6400' : rat >= 0.81 ? '#f44336' : rat >= 0.52 ? '#ffc107' : '#4caf50';
+      timeText = eld > p.ct_post ? '+' + fmtTime(eld - p.ct_post) : fmtTime(p.ct_post - eld);
+    } else if (p.status === 'done') {
+      fillW = '100%'; fillBg = '#1565c0'; timeText = 'OK';
+    }
+
+    return '<div class="post-tile ' + statusClass + '">'
+      + '<div class="post-head">'
+      +   '<span class="post-num">P' + p.post_id + '</span>'
+      +   '<span class="post-dot ' + dotClass + '"></span>'
+      +   '<span class="post-ref" title="' + refText + '">' + refText + '</span>'
+      + '</div>'
+      + '<div class="post-mini-bar">'
+      +   '<div class="post-mini-fill" id="pfill-' + line.id + '-' + p.post_id + '" style="width:' + fillW + ';background:' + fillBg + '"></div>'
+      + '</div>'
+      + '<div class="post-time" id="ptime-' + line.id + '-' + p.post_id + '">' + timeText + '</div>'
+      + lateBadge
+      + '</div>';
+  }).join('');
+
+  /* Queue progress bar */
+  var q   = line.stats;
+  var pct = q.total > 0 ? Math.round((q.done / q.total) * 100) : 0;
+  var qBar = '<div class="queue-bar-wrap">'
+    + '<div class="queue-bar-track"><div class="queue-bar-done" style="width:' + pct + '%"></div></div>'
+    + '<div class="queue-counts">'
+    +   '<span class="qc-done">Terminés : <strong>' + q.done + '</strong></span>'
+    +   '<span class="qc-active">En cours : <strong>' + q.active + '</strong></span>'
+    +   '<span>En attente : <strong>' + q.pending + '</strong></span>'
+    +   '<span style="margin-left:auto"><strong>' + pct + '%</strong> complété</span>'
+    + '</div></div>';
+
+  /* Late posts analysis — only if ≥3 completions with ≥30% late rate */
+  var latePosts = line.posts.filter(function(p) {
+    return p.lateStats && p.lateStats.total >= 3 && (p.lateStats.late / p.lateStats.total) >= 0.30;
+  }).sort(function(a, b) {
+    return (b.lateStats.late / b.lateStats.total) - (a.lateStats.late / a.lateStats.total);
+  });
+  var lateSection = '';
+  if (latePosts.length) {
+    var badges = latePosts.map(function(p) {
+      var r = Math.round((p.lateStats.late / p.lateStats.total) * 100);
+      var cls = r >= 60 ? 'late-badge critical' : 'late-badge';
+      return '<span class="' + cls + '">P' + p.post_id + ' — ' + r + '% (' + p.lateStats.late + '/' + p.lateStats.total + ')</span>';
+    }).join('');
+    lateSection = '<div class="late-analysis">'
+      + '<div class="late-title">⚠️ Postes souvent en retard</div>'
+      + '<div class="late-posts-row">' + badges + '</div>'
+      + '</div>';
+  }
+
+  var links = '';
+
+  return '<div class="line-card" id="lcard-' + line.id + '">'
+    + '<div class="line-card-header">'
+    +   '<span class="line-name">' + esc(line.name) + '</span>'
+    +   '<span class="line-badge">' + line.posts.length + ' postes</span>'
+    +   '<div class="line-actions">'
+    +     '<a class="btn-voir" href="/supervision-line.html?line=' + line.id + '">Voir →</a>'
+    +     '<button class="btn btn-ghost btn-sm" onclick="openModal(' + line.id + ',\'' + esc(line.name) + '\',' + line.posts.length + ')">Editer</button>'
+    +     '<button class="btn btn-danger btn-sm" onclick="deleteLine(' + line.id + ')">Suppr.</button>'
+    +   '</div>'
+    + '</div>'
+    + ctBar
+    + '<div class="racetrack-wrap"><canvas class="racetrack" id="canvas-' + line.id + '" data-lineid="' + line.id + '"></canvas></div>'
+    + '<div class="posts-grid">' + postTiles + '</div>'
+    + qBar
+    + lateSection
+    + links
+    + '</div>';
+}
+
+/* ── Live post tile update (called from rAF) ─────────────── */
+function updatePostTiles(line) {
+  var now = Date.now();
+  line.posts.forEach(function(post) {
+    var fillEl = document.getElementById('pfill-' + line.id + '-' + post.post_id);
+    var timeEl = document.getElementById('ptime-' + line.id + '-' + post.post_id);
+    if (!fillEl || !timeEl) return;
+
+    if (post.status === 'active' && post.started_at && post.ct_post) {
+      var elapsed = (now - post.started_at) / 1000;
+      var ratio   = elapsed / post.ct_post;
+      fillEl.style.width      = Math.round(Math.min(100, Math.max(0, ratio) * 100)) + '%';
+      fillEl.style.background = ratio >= 1 ? '#ff6400' : ratio >= 0.81 ? '#f44336' : ratio >= 0.52 ? '#ffc107' : '#4caf50';
+      if (ratio > 1) {
+        timeEl.textContent = '+' + fmtTime(elapsed - post.ct_post);
+        timeEl.style.color = '#e65100';
+      } else {
+        timeEl.textContent = fmtTime(post.ct_post - elapsed);
+        timeEl.style.color = ratio >= 0.81 ? '#c62828' : '';
+      }
+    } else if (post.status === 'done') {
+      fillEl.style.width      = '100%';
+      fillEl.style.background = '#1565c0';
+      timeEl.textContent      = 'OK';
+      timeEl.style.color      = '#1565c0';
+    } else {
+      fillEl.style.width      = '0%';
+      timeEl.textContent      = '—';
+      timeEl.style.color      = '';
+    }
+  });
+}
+
+/* ── Canvas animation ────────────────────────────────────── */
+function startAnim(line) {
+  var lineId = line.id;
+  if (canvasAnims[lineId]) cancelAnimationFrame(canvasAnims[lineId]);
+  var canvas = canvasEls[lineId];
+  if (!canvas) return;
+  var dpr = window.devicePixelRatio || 1;
+
+  function frame(ts) {
+    var c = canvasEls[lineId];
+    if (!c || !c.parentElement) return;
+
+    var rect = c.getBoundingClientRect();
+    var W = rect.width  || 420;
+    var H = rect.height || 150;
+
+    if (c.width !== Math.round(W * dpr) || c.height !== Math.round(H * dpr)) {
+      c.width  = Math.round(W * dpr);
+      c.height = Math.round(H * dpr);
+    }
+
+    var ctx = c.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+
+    var ld = linesData.find(function(l){ return l.id === lineId; });
+    if (ld) {
+      drawRacetrack(ctx, W, H, ld, ts);
+      updatePostTiles(ld);
+    }
+    canvasAnims[lineId] = requestAnimationFrame(frame);
+  }
+
+  canvasAnims[lineId] = requestAnimationFrame(frame);
+}
+
+function drawRacetrack(ctx, W, H, line, ts) {
+  var n      = line.posts.length;
+  var margin = 14;
+  var r      = Math.min((H - margin * 2) / 2, 36);
+  var trackW = W - margin * 2;
+  var x0     = margin;
+  var cy     = H / 2;
+  var topY   = cy - r;
+
+  var straight = Math.max(10, trackW - 2 * r);
+  var arcLen   = Math.PI * r;
+  var perim    = 2 * straight + 2 * arcLen;
+
+  /* Background oval */
+  ctx.beginPath();
+  ovalPath(ctx, x0, topY, trackW, r);
+  ctx.fillStyle = '#f0f2f5';
+  ctx.fill();
+
+  /* Rail */
+  var act = line.activeCt;
+  ctx.beginPath();
+  ovalPath(ctx, x0, topY, trackW, r);
+  ctx.strokeStyle = act ? '#94a3b8' : '#d1d5db';
+  ctx.lineWidth = 10;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.stroke();
+
+  /* Chain marker — real speed if active, slow drift if idle
+     If active: the chain completes one full lap every ct_global seconds.
+     Position is based on real wall-clock elapsed time since started_at. */
+  var chainDist;
+  if (act && act.ct_global && act.started_at) {
+    var elapsedSec = (Date.now() - act.started_at) / 1000;
+    chainDist = ((elapsedSec / act.ct_global) % 1) * perim;
+    if (chainDist < 0) chainDist += perim;
+  } else {
+    /* Idle drift: one lap per 40 seconds */
+    chainDist = ((ts % 40000) / 40000) * perim;
+  }
+
+  var cp = pointOnOval(x0, topY, trackW, r, straight, arcLen, chainDist);
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cp.x, cp.y, act ? 6 : 4, 0, Math.PI * 2);
+  if (act) { ctx.shadowColor = '#3b82f680'; ctx.shadowBlur = 10; }
+  ctx.fillStyle = act ? '#60a5fa' : '#9ca3af';
+  ctx.fill();
+  ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+  ctx.restore();
+
+  if (n === 0) return;
+
+  /* Posts */
+  var spacing = perim / n;
+  var now = Date.now();
+
+  for (var i = 0; i < n; i++) {
+    var post    = line.posts[i];
+    var dist    = (i * spacing) % perim;
+    var pt      = pointOnOval(x0, topY, trackW, r, straight, arcLen, dist);
+    var tangent = tangentOnOval(x0, topY, trackW, r, straight, arcLen, dist);
+
+    var fill = '#e5e7eb', stroke = '#9ca3af', textClr = '#374151';
+
+    if (post.status === 'active') {
+      var elapsed = post.started_at ? (now - post.started_at) / 1000 : 0;
+      var ratio   = post.ct_post ? elapsed / post.ct_post : 0;
+      if (ratio >= 1) {
+        var pulse = 0.6 + 0.4 * Math.sin((now / 400) * Math.PI);
+        fill    = lerpColor([255,100,0], [255,200,0], pulse);
+        stroke  = '#e65100'; textClr = '#fff';
+      } else if (ratio >= 0.81) {
+        fill = '#f44336'; stroke = '#b71c1c'; textClr = '#fff';
+      } else if (ratio >= 0.52) {
+        fill = '#ffc107'; stroke = '#e65100'; textClr = '#212121';
+      } else {
+        fill = '#4caf50'; stroke = '#1b5e20'; textClr = '#fff';
+      }
+    } else if (post.status === 'done') {
+      fill = '#1565c0'; stroke = '#0d47a1'; textClr = '#fff';
+    }
+
+    var ang = Math.atan2(tangent.y, tangent.x);
+    ctx.save();
+    ctx.translate(pt.x, pt.y);
+    ctx.rotate(ang);
+
+    var pw = 44, ph = 26;
+    var rx = -pw / 2, ry = -ph / 2;
+
+    ctx.shadowColor = 'rgba(0,0,0,.15)';
+    ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
+    roundRect(ctx, rx, ry, pw, ph, 7);
+    ctx.fillStyle = fill; ctx.fill();
+    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+
+    roundRect(ctx, rx, ry, pw, ph, 7);
+    ctx.strokeStyle = stroke; ctx.lineWidth = 1.8; ctx.stroke();
+
+    ctx.rotate(-ang);
+    ctx.fillStyle = textClr;
+    ctx.font = 'bold 10px Segoe UI, Arial, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('P' + post.post_id, 0, 0);
+    ctx.restore();
+  }
+}
+
+/* ── Oval geometry helpers ───────────────────────────────── */
+function ovalPath(ctx, x0, topY, w, r) {
+  var botY = topY + 2 * r;
+  ctx.moveTo(x0 + r, topY);
+  ctx.lineTo(x0 + w - r, topY);
+  ctx.arc(x0 + w - r, topY + r, r, -Math.PI / 2, Math.PI / 2);
+  ctx.lineTo(x0 + r, botY);
+  ctx.arc(x0 + r, topY + r, r, Math.PI / 2, -Math.PI / 2);
+  ctx.closePath();
+}
+
+function pointOnOval(x0, topY, w, r, straight, arcLen, dist) {
+  var cy = topY + r, botY = topY + 2 * r;
+  var t, a;
+  if (dist <= straight) return { x: x0 + r + dist, y: topY };
+  dist -= straight;
+  if (dist <= arcLen) {
+    t = dist / arcLen; a = -Math.PI / 2 + t * Math.PI;
+    return { x: x0 + w - r + r * Math.cos(a), y: cy + r * Math.sin(a) };
+  }
+  dist -= arcLen;
+  if (dist <= straight) return { x: x0 + w - r - dist, y: botY };
+  dist -= straight;
+  t = dist / arcLen; a = Math.PI / 2 + t * Math.PI;
+  return { x: x0 + r + r * Math.cos(a), y: cy + r * Math.sin(a) };
+}
+
+function tangentOnOval(x0, topY, w, r, straight, arcLen, dist) {
+  var t, a;
+  if (dist <= straight) return { x: 1, y: 0 };
+  dist -= straight;
+  if (dist <= arcLen) {
+    t = dist / arcLen; a = -Math.PI / 2 + t * Math.PI;
+    return { x: -Math.sin(a), y: Math.cos(a) };
+  }
+  dist -= arcLen;
+  if (dist <= straight) return { x: -1, y: 0 };
+  dist -= straight;
+  t = dist / arcLen; a = Math.PI / 2 + t * Math.PI;
+  return { x: -Math.sin(a), y: Math.cos(a) };
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+}
+
+function lerpColor(a, b, t) {
+  t = Math.max(0, Math.min(1, t));
+  return 'rgb(' + Math.round(a[0]+(b[0]-a[0])*t) + ','
+                + Math.round(a[1]+(b[1]-a[1])*t) + ','
+                + Math.round(a[2]+(b[2]-a[2])*t) + ')';
+}
+
+/* ── Modal ───────────────────────────────────────────────── */
+function openModal(id, name, posts) {
+  document.getElementById('m-id').value    = id    !== undefined ? id    : '';
+  document.getElementById('m-name').value  = name  !== undefined ? name  : '';
+  document.getElementById('m-posts').value = posts !== undefined ? posts : 4;
+  document.getElementById('modal-title').textContent = id ? 'Modifier la ligne' : 'Nouvelle ligne';
+  document.getElementById('modal-overlay').classList.add('open');
+  document.getElementById('m-name').focus();
+}
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+function closeModalOutside(e) { if (e.target === document.getElementById('modal-overlay')) closeModal(); }
+
+async function saveLine() {
+  var id    = document.getElementById('m-id').value;
+  var name  = document.getElementById('m-name').value.trim();
+  var posts = +document.getElementById('m-posts').value;
+  if (!name)  return toast('Nom requis', 'red');
+  if (!posts) return toast('Nombre de postes invalide', 'red');
+  var body = { name: name, posts: posts };
+  if (id) body.id = +id;
+  var url    = id ? '/api/lines/' + id : '/api/lines';
+  var method = id ? 'PUT' : 'POST';
+  var res = await fetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!res.ok) return toast('Erreur lors de la sauvegarde', 'red');
+  toast(id ? 'Ligne mise à jour' : 'Ligne créée', 'green');
+  closeModal();
+  load();
+}
+
+async function deleteLine(id) {
+  if (!confirm('Supprimer cette ligne et toutes ses données ?')) return;
+  var res = await fetch('/api/lines/' + id, { method: 'DELETE' });
+  if (!res.ok) return toast('Erreur', 'red');
+  toast('Ligne supprimée', '');
+  if (canvasAnims[id]) { cancelAnimationFrame(canvasAnims[id]); delete canvasAnims[id]; }
+  delete canvasEls[id];
+  load();
+}
+
+/* ── Boot ────────────────────────────────────────────────── */
+load();
+setInterval(load, 10000);
+</script>
+</body>
+</html>

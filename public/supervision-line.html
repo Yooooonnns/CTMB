@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YAZAKI — Ligne</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f0f2f5;--card:#ffffff;--border:#e2e5ea;
+  --text:#1a1d23;--dim:#6b7280;
+  --blue:#1565c0;--green:#2e7d32;--red:#c62828;--amber:#e65100;
+  --header:#0d1b2e;
+}
+body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* ── Header ── */
+header{
+  background:var(--header);color:#fff;
+  display:flex;align-items:center;gap:14px;padding:0 28px;height:60px;
+  position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.3);
+}
+.logo img{height:44px;width:auto;display:block}
+.btn-back{
+  display:inline-flex;align-items:center;gap:6px;
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
+  color:#a0aec0;border-radius:6px;padding:6px 13px;font-size:13px;font-weight:600;
+  cursor:pointer;text-decoration:none;transition:background .15s,color .15s;white-space:nowrap;
+}
+.btn-back:hover{background:rgba(255,255,255,.18);color:#fff}
+.line-title{font-size:17px;font-weight:800;color:#fff;letter-spacing:.01em}
+.hsp{flex:1}
+.header-stats{
+  display:flex;align-items:center;gap:10px;
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
+  border-radius:8px;padding:6px 14px;font-size:12px;color:#a0aec0;
+}
+.header-stats .val{color:#e2e8f0;font-weight:700}
+.header-stats .sep{color:#2d3a50;margin:0 4px}
+
+/* ── CT Info bar ── */
+.ct-info-bar{
+  display:flex;align-items:center;flex-wrap:nowrap;overflow:hidden;
+  height:44px;background:#0d1b2e;color:#a0aec0;font-size:13px;
+  border-bottom:2px solid #1a2f48;
+}
+.ct-info-bar.idle{background:#141c2b}
+.ct-chip{
+  display:flex;align-items:center;gap:6px;
+  padding:0 20px;height:100%;border-right:1px solid #1e3050;white-space:nowrap;
+  flex-shrink:0;
+}
+.ct-chip:last-child{border-right:none;margin-left:auto}
+.ct-chip .lbl{color:#4a6080;font-size:10px;text-transform:uppercase;letter-spacing:.06em}
+.ct-chip .val{color:#e2e8f0;font-weight:700;font-size:16px}
+.ct-chip .ref-val{color:#f59e0b;font-size:15px;font-weight:700}
+.ct-chip .idle-val{color:#4a5568;font-size:14px}
+.status-dot{width:9px;height:9px;border-radius:50%;background:#374151;flex-shrink:0}
+.status-dot.active{background:#4caf50;animation:dpulse 1.2s ease-in-out infinite}
+.status-dot.late{background:#ff6400;animation:dpulse .55s ease-in-out infinite}
+@keyframes dpulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* ── Racetrack ── */
+.racetrack-section{
+  background:#fff;border-bottom:1px solid var(--border);
+  padding:18px 28px;
+}
+canvas#racetrack{width:100%;height:260px;display:block;border-radius:8px}
+
+/* ── Posts ── */
+.section{padding:22px 28px 0}
+.section-title{
+  font-size:11px;font-weight:800;color:var(--dim);
+  text-transform:uppercase;letter-spacing:.07em;margin-bottom:14px;
+}
+.posts-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(170px,1fr));
+  gap:14px;
+}
+.post-card{
+  background:var(--card);border-radius:12px;padding:16px 14px;
+  box-shadow:0 1px 5px rgba(0,0,0,.08);border:2px solid transparent;
+  display:flex;flex-direction:column;gap:10px;
+  transition:border-color .2s,background .2s;
+}
+.post-card.idle  {border-color:#e5e7eb}
+.post-card.active{border-color:#a5d6a7;background:#f1fdf2}
+.post-card.late  {border-color:#ffcc80;background:#fff8f0}
+.post-card.done  {border-color:#90caf9;background:#e8f0fe}
+
+.pc-head{display:flex;align-items:center;gap:8px}
+.pc-num{font-size:12px;font-weight:800;color:var(--dim)}
+.pc-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0}
+.pc-dot.idle  {background:#bdbdbd}
+.pc-dot.active{background:#4caf50}
+.pc-dot.late  {background:#ff6400;animation:dpulse .6s ease-in-out infinite}
+.pc-dot.done  {background:#1565c0}
+.pc-op{margin-left:auto;font-size:10px;color:var(--dim);background:#f0f0f0;border-radius:4px;padding:1px 6px}
+
+.pc-ref{font-size:13px;font-weight:700;color:var(--text);word-break:break-all;min-height:20px}
+.pc-ref.empty{color:var(--dim);font-style:italic;font-weight:400}
+
+.pc-bar{height:7px;background:#e0e0e0;border-radius:4px;overflow:hidden}
+.pc-bar-fill{height:100%;border-radius:4px;width:0%;transition:width .4s linear,background .3s}
+
+.pc-time{
+  font-size:26px;font-weight:900;text-align:center;
+  font-variant-numeric:tabular-nums;line-height:1;color:var(--text);
+  letter-spacing:-.01em;
+}
+.pc-time.warn{color:#e65100}
+.pc-time.crit{color:#c62828}
+.pc-time.idle{color:#bdbdbd;font-size:16px;font-weight:400}
+.pc-time.done-ok{color:#1565c0;font-size:18px;font-weight:800}
+
+.pc-ct{display:flex;justify-content:space-between;font-size:10px;color:var(--dim)}
+.pc-ct span{font-variant-numeric:tabular-nums}
+
+.pc-late{
+  font-size:10px;font-weight:800;color:#e65100;
+  background:#fff3e0;border-radius:4px;padding:3px 7px;text-align:center;
+}
+.pc-late.critical{color:#c62828;background:#ffebee}
+
+/* ── Queue bar ── */
+.queue-section{padding:22px 28px}
+.queue-card{background:var(--card);border-radius:12px;padding:18px 22px;box-shadow:0 1px 5px rgba(0,0,0,.07)}
+.queue-bar-track{height:9px;background:#e5e7eb;border-radius:5px;overflow:hidden;margin-bottom:12px}
+.queue-bar-done{height:100%;background:linear-gradient(90deg,#2e7d32,#43a047);border-radius:5px;transition:width .5s}
+.queue-counts{display:flex;gap:22px;font-size:13px;color:var(--dim);flex-wrap:wrap;align-items:center}
+.queue-counts strong{color:var(--text)}
+.qc-done   strong{color:#2e7d32}
+.qc-active strong{color:#1565c0}
+.qc-pct{margin-left:auto;font-size:15px;font-weight:800;color:var(--text)}
+
+/* ── Late analysis ── */
+.late-section{padding:0 28px 32px}
+.late-card{
+  background:#fffbf5;border-radius:12px;padding:16px 20px;
+  border:1px solid #ffe0b2;
+}
+.late-title{font-size:11px;font-weight:800;color:#e65100;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
+.late-row{display:flex;flex-wrap:wrap;gap:7px}
+.late-badge{font-size:12px;font-weight:700;padding:4px 12px;border-radius:14px;background:#fff3e0;color:#e65100;border:1px solid #ffcc80}
+.late-badge.critical{background:#ffebee;color:#c62828;border-color:#ef9a9a}
+
+/* ── Toast ── */
+#notif{
+  position:fixed;bottom:20px;right:20px;background:#212121;color:#fff;
+  padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;
+  box-shadow:0 4px 16px rgba(0,0,0,.3);transform:translateY(80px);opacity:0;
+  transition:all .25s;z-index:300;
+}
+#notif.show{transform:translateY(0);opacity:1}
+#notif.green{background:#2e7d32}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="logo"><img src="/logo.jpg" alt="YAZAKI"></span>
+  <a class="btn-back" href="/supervision.html">← Supervision</a>
+  <span class="line-title" id="line-title">Chargement…</span>
+  <span class="hsp"></span>
+  <a class="btn-back" id="btn-dashboard" href="#" style="background:rgba(21,101,192,.25);border-color:rgba(21,101,192,.5);color:#90caf9">Dashboard</a>
+  <div class="header-stats" id="header-stats" style="display:none">
+    <span id="hs-done" class="val">0</span><span class="lbl"> terminés</span>
+    <span class="sep">|</span>
+    <span id="hs-active" class="val">0</span><span class="lbl"> en cours</span>
+    <span class="sep">|</span>
+    <span id="hs-pending" class="val">0</span><span class="lbl"> en attente</span>
+  </div>
+</header>
+
+<div class="ct-info-bar idle" id="ct-bar">
+  <div class="ct-chip">
+    <span class="lbl">Statut</span>
+    <span class="val idle-val">En attente</span>
+  </div>
+</div>
+
+<div class="racetrack-section">
+  <canvas id="racetrack"></canvas>
+</div>
+
+<div class="section">
+  <div class="section-title">Postes</div>
+  <div class="posts-grid" id="posts-grid"></div>
+</div>
+
+<div class="queue-section">
+  <div class="queue-card">
+    <div class="section-title">File d'attente</div>
+    <div class="queue-bar-track">
+      <div class="queue-bar-done" id="q-bar" style="width:0%"></div>
+    </div>
+    <div class="queue-counts" id="q-counts">
+      <span>—</span>
+    </div>
+  </div>
+</div>
+
+<div class="late-section" id="late-section" style="display:none">
+  <div class="late-card">
+    <div class="late-title">⚠️ Postes souvent en retard</div>
+    <div class="late-row" id="late-row"></div>
+  </div>
+</div>
+
+<div id="notif"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+'use strict';
+
+/* ── URL param ── */
+var params  = new URLSearchParams(window.location.search);
+var LINE_ID = +params.get('line') || 1;
+
+document.getElementById('btn-dashboard').href = '/dashboard-line.html?line=' + LINE_ID;
+
+var lineData  = null;
+var rafHandle = null;
+var canvas    = document.getElementById('racetrack');
+var dpr       = window.devicePixelRatio || 1;
+
+/* ── Socket ── */
+var socket = io();
+socket.emit('join:supervision');
+socket.on('supervision:update', load);
+socket.on('lines:updated', load);
+
+/* ── Helpers ── */
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmtTime(secs) {
+  secs = Math.floor(Math.abs(secs));
+  return Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0');
+}
+function toast(msg, cls) {
+  var el = document.getElementById('notif');
+  el.textContent = msg; el.className = 'show ' + (cls || '');
+  clearTimeout(el._t);
+  el._t = setTimeout(function(){ el.className = ''; }, 2800);
+}
+
+/* ── Load ── */
+async function load() {
+  try {
+    var all = await fetch('/api/supervision').then(function(r){ return r.json(); });
+    lineData = all.find(function(l){ return l.id === LINE_ID; }) || null;
+  } catch(e) { lineData = null; }
+
+  if (!lineData) {
+    document.getElementById('line-title').textContent = 'Ligne introuvable';
+    return;
+  }
+
+  document.title = 'YAZAKI — ' + lineData.name;
+  document.getElementById('line-title').textContent = lineData.name;
+
+  renderCTBar();
+  renderPosts();
+  renderQueue();
+  renderLate();
+  renderHeaderStats();
+}
+
+/* ── Header stats ── */
+function renderHeaderStats() {
+  var q   = lineData.stats;
+  var hs  = document.getElementById('header-stats');
+  hs.style.display = '';
+  document.getElementById('hs-done').textContent    = q.done;
+  document.getElementById('hs-active').textContent  = q.active;
+  document.getElementById('hs-pending').textContent = q.pending;
+}
+
+/* ── CT bar ── */
+function renderCTBar() {
+  var bar = document.getElementById('ct-bar');
+  var act = lineData.activeCt;
+  var now = Date.now();
+
+  if (act && act.ct_global) {
+    var elapsed = act.started_at ? (now - act.started_at) / 1000 : 0;
+    var isLate  = elapsed > act.ct_global;
+    var dotCls  = isLate ? 'status-dot late' : 'status-dot active';
+    var label   = isLate ? 'RETARD LIGNE' : 'EN COURS';
+    bar.className = 'ct-info-bar';
+    bar.innerHTML =
+      '<div class="ct-chip"><span class="lbl">Référence</span><span class="val ref-val">' + esc(act.reference || '—') + '</span></div>'
+      + '<div class="ct-chip"><span class="lbl">CT Global</span><span class="val">' + (act.ct_global || '—') + 's</span></div>'
+      + '<div class="ct-chip"><span class="lbl">CT Poste</span><span class="val">' + (act.ct_post || '—') + 's</span></div>'
+      + '<div class="ct-chip"><span class="' + dotCls + '"></span><span class="lbl" style="margin-left:6px">' + label + '</span></div>';
+  } else {
+    bar.className = 'ct-info-bar idle';
+    bar.innerHTML = '<div class="ct-chip"><span class="lbl">Statut</span><span class="val idle-val">En attente</span></div>';
+  }
+}
+
+/* ── Posts grid ── */
+function renderPosts() {
+  var grid = document.getElementById('posts-grid');
+  var now  = Date.now();
+
+  grid.innerHTML = lineData.posts.map(function(p) {
+    var cardCls = 'post-card idle', dotCls = 'pc-dot idle';
+    var timeText = '—', timeCls = 'pc-time idle';
+    var fillW = '0%', fillBg = '#e0e0e0';
+
+    if (p.status === 'active') {
+      var elapsed = p.started_at ? (now - p.started_at) / 1000 : 0;
+      var ratio   = p.ct_post ? elapsed / p.ct_post : 0;
+      var isLate  = ratio >= 1;
+      cardCls  = isLate ? 'post-card late'   : 'post-card active';
+      dotCls   = isLate ? 'pc-dot late'      : 'pc-dot active';
+      fillW    = Math.round(Math.min(100, ratio * 100)) + '%';
+      fillBg   = ratio >= 1 ? '#ff6400' : ratio >= 0.81 ? '#f44336' : ratio >= 0.52 ? '#ffc107' : '#4caf50';
+      timeCls  = ratio >= 1 ? 'pc-time crit' : ratio >= 0.81 ? 'pc-time warn' : 'pc-time';
+      timeText = isLate ? '+' + fmtTime(elapsed - p.ct_post) : fmtTime(p.ct_post - elapsed);
+    } else if (p.status === 'done') {
+      cardCls = 'post-card done'; dotCls = 'pc-dot done';
+      fillW = '100%'; fillBg = '#1565c0';
+      timeCls = 'pc-time done-ok'; timeText = 'OK ✓';
+    }
+
+    var refHtml = p.reference
+      ? '<div class="pc-ref">' + esc(p.reference) + '</div>'
+      : '<div class="pc-ref empty">Aucun harnais</div>';
+
+    var ctHtml = (p.ct_post || p.ct_global) ? (
+      '<div class="pc-ct">'
+      + '<span>CT poste : <strong>' + (p.ct_post || '—') + 's</strong></span>'
+      + '<span>CT global : <strong>' + (p.ct_global || '—') + 's</strong></span>'
+      + '</div>'
+    ) : '';
+
+    var opHtml = p.operator_id
+      ? '<span class="pc-op">👷 ' + esc(p.operator_id) + '</span>'
+      : '';
+
+    var lateHtml = '';
+    var ls = p.lateStats;
+    if (ls && ls.total >= 3) {
+      var latePct = Math.round((ls.late / ls.total) * 100);
+      if (latePct >= 30) {
+        var lCls = latePct >= 60 ? 'pc-late critical' : 'pc-late';
+        lateHtml = '<div class="' + lCls + '">'
+          + ls.late + '/' + ls.total + ' retards (' + latePct + '%)'
+          + '</div>';
+      }
+    }
+
+    return '<div class="' + cardCls + '" id="pc-' + p.post_id + '">'
+      + '<div class="pc-head">'
+      +   '<span class="pc-num">Poste ' + p.post_id + '</span>'
+      +   '<span class="' + dotCls + '" id="pcdot-' + p.post_id + '"></span>'
+      +   opHtml
+      + '</div>'
+      + refHtml
+      + '<div class="pc-bar">'
+      +   '<div class="pc-bar-fill" id="pcfill-' + p.post_id + '" style="width:' + fillW + ';background:' + fillBg + '"></div>'
+      + '</div>'
+      + '<div class="' + timeCls + '" id="pctime-' + p.post_id + '">' + timeText + '</div>'
+      + ctHtml
+      + lateHtml
+      + '</div>';
+  }).join('');
+}
+
+/* ── Live post update (called from rAF) ── */
+function updatePostsLive() {
+  if (!lineData) return;
+  var now = Date.now();
+  lineData.posts.forEach(function(p) {
+    var fillEl = document.getElementById('pcfill-' + p.post_id);
+    var timeEl = document.getElementById('pctime-' + p.post_id);
+    if (!fillEl || !timeEl) return;
+
+    if (p.status === 'active' && p.started_at && p.ct_post) {
+      var elapsed = (now - p.started_at) / 1000;
+      var ratio   = elapsed / p.ct_post;
+      fillEl.style.width      = Math.round(Math.min(100, Math.max(0, ratio) * 100)) + '%';
+      fillEl.style.background = ratio >= 1 ? '#ff6400' : ratio >= 0.81 ? '#f44336' : ratio >= 0.52 ? '#ffc107' : '#4caf50';
+      if (ratio > 1) {
+        timeEl.textContent = '+' + fmtTime(elapsed - p.ct_post);
+        timeEl.className = 'pc-time crit';
+      } else {
+        timeEl.textContent = fmtTime(p.ct_post - elapsed);
+        timeEl.className = ratio >= 0.81 ? 'pc-time warn' : 'pc-time';
+      }
+    }
+  });
+}
+
+/* ── Queue ── */
+function renderQueue() {
+  var q   = lineData.stats;
+  var pct = q.total > 0 ? Math.round((q.done / q.total) * 100) : 0;
+  document.getElementById('q-bar').style.width = pct + '%';
+  document.getElementById('q-counts').innerHTML =
+    '<span class="qc-done">Terminés : <strong>' + q.done + '</strong></span>'
+    + '<span class="qc-active">En cours : <strong>' + q.active + '</strong></span>'
+    + '<span>En attente : <strong>' + q.pending + '</strong></span>'
+    + '<span class="qc-pct">' + pct + '%</span>';
+}
+
+/* ── Late analysis ── */
+function renderLate() {
+  var latePosts = lineData.posts.filter(function(p) {
+    return p.lateStats && p.lateStats.total >= 3 && (p.lateStats.late / p.lateStats.total) >= 0.30;
+  }).sort(function(a, b) {
+    return (b.lateStats.late / b.lateStats.total) - (a.lateStats.late / a.lateStats.total);
+  });
+  var sec = document.getElementById('late-section');
+  if (!latePosts.length) { sec.style.display = 'none'; return; }
+  sec.style.display = '';
+  document.getElementById('late-row').innerHTML = latePosts.map(function(p) {
+    var r   = Math.round((p.lateStats.late / p.lateStats.total) * 100);
+    var cls = r >= 60 ? 'late-badge critical' : 'late-badge';
+    return '<span class="' + cls + '">Poste ' + p.post_id + ' — ' + r + '% (' + p.lateStats.late + '/' + p.lateStats.total + ')</span>';
+  }).join('');
+}
+
+/* ── Canvas racetrack (rAF loop) ── */
+function frame(ts) {
+  if (!canvas.parentElement) return;
+  var rect = canvas.getBoundingClientRect();
+  var W = rect.width  || 900;
+  var H = rect.height || 260;
+
+  if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) {
+    canvas.width  = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+  }
+
+  var ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+
+  if (lineData) {
+    drawRacetrack(ctx, W, H, lineData, ts);
+    updatePostsLive();
+  }
+
+  rafHandle = requestAnimationFrame(frame);
+}
+
+rafHandle = requestAnimationFrame(frame);
+
+/* ── Canvas drawing ── */
+function drawRacetrack(ctx, W, H, line, ts) {
+  var n      = line.posts.length;
+  var margin = 22;
+  var r      = Math.min((H - margin * 2) / 2, 52);
+  var trackW = W - margin * 2;
+  var x0     = margin;
+  var cy     = H / 2;
+  var topY   = cy - r;
+
+  var straight = Math.max(10, trackW - 2 * r);
+  var arcLen   = Math.PI * r;
+  var perim    = 2 * straight + 2 * arcLen;
+
+  /* Background oval */
+  ctx.beginPath();
+  ovalPath(ctx, x0, topY, trackW, r);
+  ctx.fillStyle = '#f0f2f5';
+  ctx.fill();
+
+  /* Rail */
+  var act = line.activeCt;
+  ctx.beginPath();
+  ovalPath(ctx, x0, topY, trackW, r);
+  ctx.strokeStyle = act ? '#94a3b8' : '#d1d5db';
+  ctx.lineWidth   = 16;
+  ctx.lineCap     = 'round';
+  ctx.lineJoin    = 'round';
+  ctx.stroke();
+
+  /* Chain marker */
+  var chainDist;
+  if (act && act.ct_global && act.started_at) {
+    var elapsedSec = (Date.now() - act.started_at) / 1000;
+    chainDist = ((elapsedSec / act.ct_global) % 1) * perim;
+    if (chainDist < 0) chainDist += perim;
+  } else {
+    chainDist = ((ts % 40000) / 40000) * perim;
+  }
+
+  var cp = pointOnOval(x0, topY, trackW, r, straight, arcLen, chainDist);
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cp.x, cp.y, act ? 10 : 6, 0, Math.PI * 2);
+  if (act) { ctx.shadowColor = '#3b82f680'; ctx.shadowBlur = 16; }
+  ctx.fillStyle = act ? '#60a5fa' : '#9ca3af';
+  ctx.fill();
+  ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+  ctx.restore();
+
+  if (n === 0) return;
+
+  var spacing = perim / n;
+  var now = Date.now();
+
+  for (var i = 0; i < n; i++) {
+    var post    = line.posts[i];
+    var dist    = (i * spacing) % perim;
+    var pt      = pointOnOval(x0, topY, trackW, r, straight, arcLen, dist);
+    var tangent = tangentOnOval(x0, topY, trackW, r, straight, arcLen, dist);
+
+    var fill = '#e5e7eb', stroke = '#9ca3af', textClr = '#374151';
+
+    if (post.status === 'active') {
+      var elapsed = post.started_at ? (now - post.started_at) / 1000 : 0;
+      var ratio   = post.ct_post ? elapsed / post.ct_post : 0;
+      if (ratio >= 1) {
+        var pulse = 0.6 + 0.4 * Math.sin((now / 400) * Math.PI);
+        fill = lerpColor([255,100,0], [255,200,0], pulse);
+        stroke = '#e65100'; textClr = '#fff';
+      } else if (ratio >= 0.81) {
+        fill = '#f44336'; stroke = '#b71c1c'; textClr = '#fff';
+      } else if (ratio >= 0.52) {
+        fill = '#ffc107'; stroke = '#e65100'; textClr = '#212121';
+      } else {
+        fill = '#4caf50'; stroke = '#1b5e20'; textClr = '#fff';
+      }
+    } else if (post.status === 'done') {
+      fill = '#1565c0'; stroke = '#0d47a1'; textClr = '#fff';
+    }
+
+    var ang = Math.atan2(tangent.y, tangent.x);
+    ctx.save();
+    ctx.translate(pt.x, pt.y);
+    ctx.rotate(ang);
+
+    var pw = 62, ph = 34;
+    ctx.shadowColor = 'rgba(0,0,0,.18)'; ctx.shadowBlur = 10; ctx.shadowOffsetY = 3;
+    roundRect(ctx, -pw / 2, -ph / 2, pw, ph, 9);
+    ctx.fillStyle = fill; ctx.fill();
+    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+
+    roundRect(ctx, -pw / 2, -ph / 2, pw, ph, 9);
+    ctx.strokeStyle = stroke; ctx.lineWidth = 2; ctx.stroke();
+
+    ctx.rotate(-ang);
+    ctx.fillStyle = textClr;
+    ctx.font = 'bold 12px Segoe UI, Arial, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('P' + post.post_id, 0, 0);
+    ctx.restore();
+  }
+}
+
+/* ── Oval geometry ── */
+function ovalPath(ctx, x0, topY, w, r) {
+  var botY = topY + 2 * r;
+  ctx.moveTo(x0 + r, topY);
+  ctx.lineTo(x0 + w - r, topY);
+  ctx.arc(x0 + w - r, topY + r, r, -Math.PI / 2, Math.PI / 2);
+  ctx.lineTo(x0 + r, botY);
+  ctx.arc(x0 + r, topY + r, r, Math.PI / 2, -Math.PI / 2);
+  ctx.closePath();
+}
+
+function pointOnOval(x0, topY, w, r, straight, arcLen, dist) {
+  var cy = topY + r, botY = topY + 2 * r, t, a;
+  if (dist <= straight) return { x: x0 + r + dist, y: topY };
+  dist -= straight;
+  if (dist <= arcLen) {
+    t = dist / arcLen; a = -Math.PI / 2 + t * Math.PI;
+    return { x: x0 + w - r + r * Math.cos(a), y: cy + r * Math.sin(a) };
+  }
+  dist -= arcLen;
+  if (dist <= straight) return { x: x0 + w - r - dist, y: botY };
+  dist -= straight;
+  t = dist / arcLen; a = Math.PI / 2 + t * Math.PI;
+  return { x: x0 + r + r * Math.cos(a), y: cy + r * Math.sin(a) };
+}
+
+function tangentOnOval(x0, topY, w, r, straight, arcLen, dist) {
+  var t, a;
+  if (dist <= straight) return { x: 1, y: 0 };
+  dist -= straight;
+  if (dist <= arcLen) {
+    t = dist / arcLen; a = -Math.PI / 2 + t * Math.PI;
+    return { x: -Math.sin(a), y: Math.cos(a) };
+  }
+  dist -= arcLen;
+  if (dist <= straight) return { x: -1, y: 0 };
+  dist -= straight;
+  t = dist / arcLen; a = Math.PI / 2 + t * Math.PI;
+  return { x: -Math.sin(a), y: Math.cos(a) };
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+}
+
+function lerpColor(a, b, t) {
+  t = Math.max(0, Math.min(1, t));
+  return 'rgb('
+    + Math.round(a[0] + (b[0]-a[0])*t) + ','
+    + Math.round(a[1] + (b[1]-a[1])*t) + ','
+    + Math.round(a[2] + (b[2]-a[2])*t) + ')';
+}
+
+/* ── Boot ── */
+load();
+setInterval(load, 10000);
+</script>
+</body>
+</html>

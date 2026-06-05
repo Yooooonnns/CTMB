@@ -1,0 +1,15 @@
+{
+  "name": "yazaki-system",
+  "version": "1.0.0",
+  "description": "YAZAKI production line automation",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "mqtt": "^5.15.1",
+    "socket.io": "^4.7.5",
+    "xlsx": "^0.18.5"
+  }
+}
