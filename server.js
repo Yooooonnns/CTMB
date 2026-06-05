@@ -8,7 +8,7 @@ const { spawn } = require('child_process');
 
 
 const PORT    = process.env.PORT || 8080;
-const DB_FILE = path.join(__dirname, 'yazaki-db.json');
+const DB_FILE = process.env.DB_PATH || path.join(__dirname, 'yazaki-db.json');
 
 let STATE;
 try { STATE = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); }
@@ -531,14 +531,17 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`  Réseau  : http://172.18.64.1:${PORT}`);
   console.log('');
 
-  const ctmbDir = path.join(__dirname, 'ctmb-display');
-  const electronBin = path.join(ctmbDir, 'node_modules', '.bin', 'electron.cmd');
-  const electron = spawn(electronBin, ['.'], {
-    cwd: ctmbDir,
-    shell: true,
-    detached: true,
-    stdio: 'ignore'
-  });
-  electron.unref();
-  console.log('CTMB Display launched.');
+  if (process.env.LAUNCH_CTMB === 'true') {
+    const ctmbDir = path.join(__dirname, 'ctmb-display');
+    const electronBin = path.join(ctmbDir, 'node_modules', '.bin', 'electron.cmd');
+    const electron = spawn(electronBin, ['.'], {
+      cwd: ctmbDir,
+      shell: true,
+      detached: true,
+      stdio: 'ignore'
+    });
+    electron.on('error', () => {});
+    electron.unref();
+    console.log('CTMB Display launched.');
+  }
 });
