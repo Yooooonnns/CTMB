@@ -42,7 +42,8 @@ function persist() { fs.writeFile(DB_FILE, JSON.stringify(STATE, null, 2), 'utf8
 const MISTAKE_DB = {};
 try {
   const XLSX = require('xlsx');
-  const xlPath = 'C:/Users/youne/Desktop/projects/YAZAKI/commandeChaine/Yazaki.CommandeChaine/publish-desktop/Classeur2.xlsx';
+  const xlPath = process.env.EXCEL_PATH;
+  if (!xlPath) throw new Error('EXCEL_PATH not set');
   const wb = XLSX.readFile(xlPath);
   const ws = wb.Sheets[wb.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
@@ -146,7 +147,8 @@ app.delete('/api/harnesses/:ref', (req, res) => {
 app.post('/api/import-excel', (req, res) => {
   try {
     const XLSX = require('xlsx');
-    const xlFile = 'C:/Users/youne/Desktop/projects/YAZAKI/commandeChaine/publish-desktop/Classeur2.xlsx';
+    const xlFile = process.env.EXCEL_PATH;
+    if (!xlFile) throw new Error('EXCEL_PATH not set');
     const wb = XLSX.readFile(xlFile);
     const ws = wb.Sheets['Feuil1'];
     const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
@@ -499,14 +501,9 @@ app.get('/api/stats', (_, res) => {
   res.json({ total, done, active, pending });
 });
 
-// ── CTMB: open WPF window from browser ──────────────────────────────────────
-// The browser POSTs here; we relay via Socket.io to any connected WPF app.
+// ── CTMB: relay open event to already-running Electron app ───────────────────
 app.post('/api/ctmb/open', (req, res) => {
   const { lineId, postId } = req.body;
-  const room = io.sockets.adapter.rooms.get('wpf-managers');
-  if (!room || room.size === 0) {
-    return res.status(503).json({ ok: false });
-  }
   io.to('wpf-managers').emit('ctmb:open', { lineId: +lineId, postId: +postId });
   res.json({ ok: true });
 });
@@ -531,17 +528,17 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`  Réseau  : http://172.18.64.1:${PORT}`);
   console.log('');
 
-  if (process.env.LAUNCH_CTMB === 'true') {
-    const ctmbDir = path.join(__dirname, 'ctmb-display');
-    const electronBin = path.join(ctmbDir, 'node_modules', '.bin', 'electron.cmd');
-    const electron = spawn(electronBin, ['.'], {
-      cwd: ctmbDir,
-      shell: true,
-      detached: true,
-      stdio: 'ignore'
-    });
-    electron.on('error', () => {});
-    electron.unref();
-    console.log('CTMB Display launched.');
-  }
+  const ctmbDir     = path.join(__dirname, 'ctmb-display');
+  const electronExe = path.join(ctmbDir, 'node_modules', 'electron', 'dist', 'electron.exe');
+  const ctmbProc = spawn(electronExe, ['.'], {
+    cwd: ctmbDir,
+    shell: false,
+    detached: true,
+    windowsHide: true,
+    stdio: 'ignore',
+    env: { ...process.env, YAZAKI_NODE_SERVER_URL: `http://localhost:${PORT}` }
+  });
+  ctmbProc.on('error', () => {});
+  ctmbProc.unref();
+  console.log('  CTMB    : Electron display launched (background)');
 });
